@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 680" width="680" height="680">
+  <title>Default avatar ChessFeller</title>
+
+  <!-- sfondo circolare -->
+  <circle cx="340" cy="340" r="300" fill="#1e2d10"/>
+
+  <!-- anello verde chiaro -->
+  <circle cx="340" cy="340" r="300" fill="none" stroke="#8dc95d" stroke-width="18"/>
+
+  <!-- testa -->
+  <circle cx="340" cy="220" r="72" fill="#8dc95d"/>
+
+  <!-- collo + spalle -->
+  <path d="M296 292 Q340 330 384 292 L400 370 Q340 400 280 370 Z" fill="#8dc95d"/>
+
+  <!-- corpo / base trapezoidale -->
+  <path d="M252 430 Q260 390 280 370 Q340 400 400 370 Q420 390 428 430 L440 510 Q340 540 240 510 Z" fill="#8dc95d"/>
+
+  <!-- piedistallo arrotondato -->
+  <rect x="210" y="510" width="260" height="52" rx="26" fill="#8dc95d"/>
+</svg>

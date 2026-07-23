@@ -1,0 +1,31 @@
+RewriteEngine On
+RewriteBase /
+
+# lascia passare file e cartelle reali (css, js, immagini, ecc.)
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# route pulite
+RewriteRule ^login/?$ index.php?url=login [L,QSA]
+RewriteRule ^login-exe/?$ index.php?url=loginExe [L,QSA]
+RewriteRule ^signin/?$ index.php?url=signin [L,QSA]
+RewriteRule ^signin-exe/?$ index.php?url=signinexe [L,QSA]
+
+RewriteRule ^logout/?$ index.php?url=logout [L,QSA]
+RewriteRule ^home/?$ index.php?url=home [L,QSA]
+RewriteRule ^profile/?$ index.php?url=profile [L,QSA]
+RewriteRule ^edit-profile/?$ index.php?url=editProfile [L,QSA]
+
+RewriteRule ^search-match/?$ index.php?url=searchMatch [L,QSA]
+RewriteRule ^check-match/?$ index.php?url=checkMatch [L,QSA]
+RewriteRule ^leave-matchmaking/?$ index.php?url=leaveMatchmaking [L,QSA]
+
+RewriteRule ^board/([0-9]+)/?$ index.php?url=board&id=$1 [L,QSA]
+RewriteRule ^resign/?$ index.php?url=resign [L,QSA]
+RewriteRule ^sync-match/?$ index.php?url=syncMatch [L,QSA]
+RewriteRule ^legal-moves/?$ index.php?url=legalMoves [L,QSA]
+RewriteRule ^promuovi/?$ index.php?url=promuovi [L,QSA]
+
+# fallback per qualunque altra rotta
+RewriteRule ^([A-Za-z0-9_-]+)/?$ index.php?url=$1 [L,QSA]

@@ -1,0 +1,5 @@
+*.sess_*
+tmp/
+.env
+/vendor/
+.vscode/
