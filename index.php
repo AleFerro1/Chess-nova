@@ -311,155 +311,182 @@ switch ($url) {
     }
 
     case 'board':{
-    $service = new ChessServices();
-    
-    $board = new GameController($db);
-    $game = $board->stateMatch($_GET['id'] ?? null);
-    
-    $boardFittizia = $service->createBoard($game['fen']);
-    
-    if ($_SERVER['REQUEST_METHOD'] == "POST") {
-        header('Content-Type: application/json');
+        $service = new ChessServices();
+        
+        $board = new GameController($db);
+        $game = $board->stateMatch($_GET['id'] ?? null);
+        
+        $boardFittizia = $service->createBoard($game['fen']);
+        
+        if ($_SERVER['REQUEST_METHOD'] == "POST") {
+            header('Content-Type: application/json');
 
-        $piece = $_POST["piece"];
-        $from  = $_POST["from"];
-        $to    = $_POST["to"];
+            $piece = $_POST["piece"];
+            $from  = $_POST["from"];
+            $to    = $_POST["to"];
 
-        $notation = $piece . $from . $to;
+            $notation = $piece . $from . $to;
 
-        if (!$board->canPlayerMakeMove($game['id_partita'], $_SESSION['username'], $piece)) {
-            echo json_encode(["success" => false, "error" => "non è il tuo pezzo"]);
-            exit;
-        }
+            if (!$board->canPlayerMakeMove($game['id_partita'], $_SESSION['username'], $piece)) {
+                echo json_encode(["success" => false, "error" => "non è il tuo pezzo"]);
+                exit;
+            }
 
-        $newFen = $service->isValidMove($game['fen'], $piece, $from, $to);
+            $newFen = $service->isValidMove($game['fen'], $piece, $from, $to);
 
-        if ($newFen === false) { //mossa non valida
-            echo json_encode(["success" => false]);
-            exit;
-        }
+            if ($newFen === false) { // mossa non valida
+                echo json_encode(["success" => false]);
+                exit;
+            }
 
-        // Promozionechied al client che pezzo vuole
-        if (is_array($newFen) && isset($newFen['promozione'])) {
-            echo json_encode([
-                "success"    => true,
-                "promozione" => true,
-                "fen_base"   => $newFen['fen_base']
-            ]);
-            exit;
-        }
-
-        if (is_array($newFen) && isset($newFen['check'])) { //check 
-            $actualFen = $newFen['fen'];
-            $board->updateMatch($game['id_partita'], $actualFen, $notation, 'in corso');
-            $newBoard  = $service->createBoard($actualFen);
-            $opponent  = $service->getTurn($actualFen);
-            $checkmate = !$service->hasLegalMoves($newBoard, $opponent);
-
-            if ($checkmate) {
-                $winner = ($opponent === 'w') ? 'nero' : 'bianco';
-                $board->updateWinner($winner, $game['id_partita']);
-                $board->updateMatch($game['id_partita'], $actualFen, $notation, 'Checkmate');
-
+            // Promozione: chiedi al client che pezzo vuole
+            if (is_array($newFen) && isset($newFen['promozione'])) {
                 echo json_encode([
-                    "success" => true,
-                    "fen" => $actualFen,
-                    "board" => $newBoard,
-                    "checkmate" => true,
-                    "winner" => $winner
+                    "success"    => true,
+                    "promozione" => true,
+                    "fen_base"   => $newFen['fen_base']
                 ]);
                 exit;
             }
 
+            // ───── SCACCO (o scacco matto) ─────
+            if (is_array($newFen) && isset($newFen['check'])) {
+                $actualFen = $newFen['fen'];
+                $newBoard  = $service->createBoard($actualFen);
+                $opponent  = $service->getTurn($actualFen);   // chi lo subisce
+                $checkmate = !$service->hasLegalMoves($newBoard, $opponent);
+
+                // ── Aggiornamento tempo (come per le mosse normali) ──
+                $oldTurn = $service->getTurn($game['fen']);   // turno prima della mossa
+                $adesso  = time();
+                $tempo_passato = $adesso - $game['tempo_ultima_mossa'];
+
+                if ($oldTurn === 'w') {
+                    $nuovoTempoBianco = $game['tempo_bianco'] - $tempo_passato;
+                    $board->updateTime($game['id_partita'], $nuovoTempoBianco, 'w');
+                    $tempo = ["tempo" => $board->getTime($game['id_partita'], 'w'), "colore" => 'w'];
+                } else {
+                    $nuovoTempoNero = $game['tempo_nero'] - $tempo_passato;
+                    $board->updateTime($game['id_partita'], $nuovoTempoNero, 'b');
+                    $tempo = ["tempo" => $board->getTime($game['id_partita'], 'b'), "colore" => 'b'];
+                }
+
+                // Notazione formattata
+                $lastMove = $service->lastMove($notation);
+                $turn     = $service->getTurn($actualFen);   // a chi tocca adesso
+
+                if ($checkmate) {
+                    $winner = ($opponent === 'w') ? 'nero' : 'bianco';
+                    $board->updateWinner($winner, $game['id_partita']);
+                    $board->updateMatch($game['id_partita'], $actualFen, $notation, 'Checkmate');
+
+                    echo json_encode([
+                        "success"   => true,
+                        "fen"       => $actualFen,
+                        "board"     => $newBoard,
+                        "checkmate" => true,
+                        "winner"    => $winner,
+                        "tempo"     => $tempo,        // così il client sa ancora il tempo residuo
+                        "notation"  => $lastMove
+                    ]);
+                    exit;
+                }
+
+                // Scacco semplice (non matto)
+                $board->updateMatch($game['id_partita'], $actualFen, $notation, 'in corso');
+
+                echo json_encode([
+                    "success"      => true,
+                    "fen"          => $actualFen,
+                    "board"        => $newBoard,
+                    "check"        => true,
+                    "checkmate"    => false,
+                    "enoughPieces" => true,
+                    "tempo"        => $tempo,
+                    "notation"     => $lastMove,
+                    "turn"         => $turn
+                ]);
+                exit;
+            }
+
+            // ───── MOSSA NORMALE (nessuna promozione, nessuno scacco) ─────
+            $newBoard     = $service->createBoard($newFen);
+            $opponent     = $service->getTurn($newFen);
+
+            $stalemate    = !$service->isKingInCheck($newBoard, $opponent)
+                        && !$service->hasLegalMoves($newBoard, $opponent);
+
+            $enoughPieces = $service->hasEnoughPieces($newFen);
+            $fiftyMoves   = $service->isFiftyMoveRule($newFen);
+            $lastMove     = $service->lastMove($notation);
+            $turno        = $service->getTurn($game['fen']);
+
+            $tmp = $board->getFullMatch($game['id_partita']);
+            $repetition = $service->repeatedMoves($tmp['moves'], $newFen);
+
+            if ($stalemate) {
+                $stato = 'Stalemate';
+            } elseif (!$enoughPieces) {
+                $stato = 'Insufficient material';
+            } elseif ($repetition) {
+                $stato = 'Threefold repetition';
+            } elseif ($fiftyMoves) {
+                $stato = '50 moves';
+            } else {
+                $stato = 'in corso';
+            }
+
+            $possibleOutcomes = ['Stalemate', 'Insufficient material', 'Threefold repetition', '50 moves'];
+            if (in_array($stato, $possibleOutcomes)) {
+                $board->updateDraw($game['id_partita']);
+            }
+
+            $adesso = time();
+            $tempo_passato = $adesso - $game['tempo_ultima_mossa'];
+
+            if ($turno === 'w') {
+                $nuovoTempoBianco = $game['tempo_bianco'] - $tempo_passato;
+                $board->updateTime($game['id_partita'], $nuovoTempoBianco, $turno);
+                $tempo = ["tempo" => $board->getTime($game['id_partita'], $turno), "colore" => $turno];
+            } else {
+                $nuovoTempoNero = $game['tempo_nero'] - $tempo_passato;
+                $board->updateTime($game['id_partita'], $nuovoTempoNero, $turno);
+                $tempo = ["tempo" => $board->getTime($game['id_partita'], $turno), "colore" => $turno];
+            }
+
+            $board->updateMatch($game['id_partita'], $newFen, $notation, $stato);
+            $fullMatch = $board->getFullMatch($game['id_partita']);
+
             echo json_encode([
                 "success"      => true,
-                "fen"          => $actualFen,
+                "fen"          => $newFen,
                 "board"        => $newBoard,
-                "check"        => true,
-                "checkmate"    => $checkmate,
-                "enoughPieces" => true 
+                "stalemate"    => $stalemate,
+                "enoughPieces" => $enoughPieces,
+                "repetition"   => $repetition,
+                "fiftyMoves"   => $fiftyMoves,
+                "notation"     => $lastMove,
+                "tempo"        => $tempo,
+                "storico"      => $fullMatch
             ]);
             exit;
-        }
 
-        // Mossa nrmale
-        $newBoard     = $service->createBoard($newFen);
-        $opponent     = $service->getTurn($newFen);
-
-        $stalemate    = !$service->isKingInCheck($newBoard, $opponent)
-                    && !$service->hasLegalMoves($newBoard, $opponent);
-
-        $enoughPieces = $service->hasEnoughPieces($newFen);
-        $fiftyMoves   = $service->isFiftyMoveRule($newFen);
-        $lastMove = $service->lastMove($notation);
-        $turno = $service->getTurn($game['fen']);
-
-        // passa $newFen che è la posizione appena raggiunta
-        $tmp = $board->getFullMatch($game['id_partita']);
-        $repetition = $service->repeatedMoves($tmp['moves'], $newFen);
-        if ($stalemate) {
-            $stato = 'Stalemate';
-        } elseif (!$enoughPieces) {
-            $stato = 'Insufficent material';
-        } elseif ($repetition) {
-            $stato = 'Threefold repetition';
-        } elseif ($fiftyMoves) {
-            $stato = '50 moves';
         } else {
-            $stato = 'in corso';
+            $coloreGiocatore = $board->getPlayerColor($_SESSION['username']);
+            echo $board->printBoard(
+                $boardFittizia,
+                $coloreGiocatore,
+                $game['tempo_bianco'],
+                $game['tempo_nero'],
+                $game['tempo_ultima_mossa'],
+                $_SESSION['username'],
+                $game['id_partita'],
+                $game['tipo_partita'],
+                $game['fen']
+            );
         }
 
-        $possibleOutcomes = ['Stalemate', 'Insufficent material', 'Threefold repetition', '50 moves'];
-
-        if(in_array($stato, $possibleOutcomes)){
-            $board->updateDraw($game['id_partita']);
-        }
-
-        $adesso = time();
-        $tempo_passato = $adesso - $game['tempo_ultima_mossa'];
-
-        if ($turno === 'w') {
-            $nuovoTempoBianco = $game['tempo_bianco'] - $tempo_passato;
-            $board->updateTime($game['id_partita'], $nuovoTempoBianco, $turno);
-            $tempo = ["tempo" => $board->getTime($game['id_partita'], $turno), "colore" => $turno];
-        } else {
-            $nuovoTempoNero = $game['tempo_nero'] - $tempo_passato;
-            $board->updateTime($game['id_partita'], $nuovoTempoNero, $turno);
-            $tempo = ["tempo" => $board->getTime($game['id_partita'], $turno), "colore" => $turno];
-        }
-
-        $board->updateMatch($game['id_partita'], $newFen, $notation, $stato);
-        $fullMatch = $board->getFullMatch($game['id_partita']);
-
-        echo json_encode([
-            "success"      => true,
-            "fen"          => $newFen,
-            "board"        => $newBoard,
-            "stalemate"    => $stalemate,
-            "enoughPieces" => $enoughPieces,
-            "repetition"   => $repetition,
-            "fiftyMoves"   => $fiftyMoves,
-            "notation" => $lastMove,
-            "tempo" => $tempo,
-            "storico" => $fullMatch
-        ]);
-        exit;
-    } else {
-        $coloreGiocatore = $board->getPlayerColor($_SESSION['username']);
-        echo $board->printBoard(
-            $boardFittizia,
-            $coloreGiocatore,
-            $game['tempo_bianco'],
-            $game['tempo_nero'],
-            $game['tempo_ultima_mossa'],
-            $_SESSION['username'],
-            $game['id_partita'],
-            $game['tipo_partita'],
-            $game['fen']
-        );
-    }
-
-    break;
+        break;
     }
     case 'promuovi':{
     $service = new ChessServices();
