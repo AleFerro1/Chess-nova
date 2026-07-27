@@ -37,6 +37,7 @@ RewriteRule ^resign/?$ index.php?url=resign [L,QSA]
 RewriteRule ^sync-match/?$ index.php?url=syncMatch [L,QSA]
 RewriteRule ^legal-moves/?$ index.php?url=legalMoves [L,QSA]
 RewriteRule ^promuovi/?$ index.php?url=promuovi [L,QSA]
+RewriteRule ^timeoutGame/?$ index.php?url=timeoutGame [L,QSA]
 
 # fallback per qualunque altra rotta
 RewriteRule ^([A-Za-z0-9_-]+)/?$ index.php?url=$1 [L,QSA]

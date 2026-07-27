@@ -254,7 +254,7 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
                 if (currentTurn === 'w') {
                     tempoBianco--;
                     if (tempoBianco <= 0) {
-                        console.log("Tempo bianco scaduto");
+                        console.log("Tempo bianco scaduto" + window.gameId);
                         tempoBianco = 0;
                         clearInterval(intervalTimer);
                         document.getElementById('timerBianco').classList.add('scaduto');
