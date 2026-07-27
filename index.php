@@ -303,7 +303,8 @@ switch ($url) {
         // Determina il vincitore opposto
         $winner = ($color === 'bianco') ? 'nero' : 'bianco';
         $board->updateWinner($winner, $id);
-        $board->updateMatch($id, null, null, 'Timeout');  // aggiorna lo stato (fen e notation non cambiano)
+        $game = $board->stateMatch($id);
+        $board->updateMatch($id, $game['fen'], $game['notation'], 'Timeout');  // aggiorna lo stato (fen e notation non cambiano)
 
         echo json_encode(["success" => true]);
         exit;
