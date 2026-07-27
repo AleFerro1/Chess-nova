@@ -254,6 +254,7 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
                 if (currentTurn === 'w') {
                     tempoBianco--;
                     if (tempoBianco <= 0) {
+                        console.log("Tempo bianco scaduto");
                         tempoBianco = 0;
                         clearInterval(intervalTimer);
                         document.getElementById('timerBianco').classList.add('scaduto');
@@ -277,6 +278,7 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
                     }
                 } else {
                     tempoNero--;
+                    console.log("Tempo nero scaduto");
                     if (tempoNero <= 0) {
                         tempoNero = 0;
                         clearInterval(intervalTimer);
