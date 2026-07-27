@@ -127,6 +127,7 @@
     </div>
 
     <script>
+        console.log("Board.php caricato");
         window.board = <?php echo json_encode($board); ?>;
         window.turn  = "<?php echo $turn; ?>";
         window.playerColor = "<?= $coloreGiocatore ?>";
