@@ -151,7 +151,7 @@
             left.appendChild(topBar);
         }
     </script>
-    <script src="/js/game.js"></script>
+    <script src="/js/game.js?v=<?= time() ?>"></script>
 
 </body>
 </html>
