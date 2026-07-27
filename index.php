@@ -294,11 +294,11 @@ switch ($url) {
         }
 
         // Verifica che il giocatore sia effettivamente di quel colore nella partita
-        $playerColor = $board->getPlayerColor($_SESSION['username']);
+        /*$playerColor = $board->getPlayerColor($_SESSION['username']);
         if ($playerColor !== $color) {
             echo json_encode(["success" => false, "error" => "colore non corrispondente"]);
             exit;
-        }
+        }*/
 
         // Determina il vincitore opposto
         $winner = ($color === 'bianco') ? 'nero' : 'bianco';
