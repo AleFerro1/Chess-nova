@@ -96,6 +96,7 @@ initTimerFromServer();
 // --- Timer ---------------------------------------------------
 
 function avviaTimer() {
+    console.log("Tempo bianco scaduto" + gameId);
     if (intervalTimer) clearInterval(intervalTimer);
     intervalTimer = setInterval(() => {
         if (gameOver) return;
