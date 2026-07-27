@@ -98,21 +98,51 @@ initTimerFromServer();
 function avviaTimer() {
     if (intervalTimer) clearInterval(intervalTimer);
     intervalTimer = setInterval(() => {
+        if (gameOver) return;
         if (currentTurn === 'w') {
             tempoBianco--;
             if (tempoBianco <= 0) {
+                console.log("Tempo bianco scaduto" + gameId);
                 tempoBianco = 0;
                 clearInterval(intervalTimer);
                 document.getElementById('timerBianco').classList.add('scaduto');
-                new Audio('/sounds/game-end.mp3').play();
+                // 1. Aggiorna il database
+                fetch(`/timeoutGame?id=${gameId}&color=bianco`, {
+                    method: 'POST',
+                    credentials: 'same-origin'
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        // 2. Notifica l'avversario via WebSocket
+                        broadcastGameOver('timeout', (window.playerColor === 'bianco' ? 'nero' : 'bianco'));
+                        // 3. Mostra schermata
+                        endGame('Timeout', window.playerColor === 'bianco' ? 'Black wins!' : 'White wins!');
+                        playEndSound();
+                    } else {
+                        console.error("Errore aggiornamento timeout:", data.error);
+                    }
+                });
             }
         } else {
             tempoNero--;
+            console.log("Tempo nero scaduto");
             if (tempoNero <= 0) {
                 tempoNero = 0;
                 clearInterval(intervalTimer);
                 document.getElementById('timerNero').classList.add('scaduto');
-                new Audio('/sounds/game-end.mp3').play();
+                fetch(`/timeoutGame?id=${gameId}&color=nero`, {
+                    method: 'POST',
+                    credentials: 'same-origin'
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        broadcastGameOver('timeout', (window.playerColor === 'bianco' ? 'nero' : 'bianco'));
+                        endGame('Timeout', window.playerColor === 'bianco' ? 'Black wins!' : 'White wins!');
+                        playEndSound();
+                    }
+                });
             }
         }
         aggiornaVisualTimer();
