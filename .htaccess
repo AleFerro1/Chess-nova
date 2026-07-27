@@ -1,6 +1,17 @@
 RewriteEngine On
 RewriteBase /
 
+# Redirect: blocca l'accesso diretto a business logic dall'url
+RewriteRule ^app/                 / [R=302,L]
+RewriteRule ^tmp/                 / [R=302,L]
+RewriteRule ^vendor/                 / [R=302,L]
+RewriteRule ^\.vscode/                 / [R=302,L]
+RewriteRule ^\.gitignore$         / [R=302,L]
+RewriteRule ^\.htaccess$          / [R=302,L]
+RewriteRule ^composer\.(json|lock)$ / [R=302,L]
+RewriteRule ^websocket\.php$      / [R=302,L]
+RewriteRule ^\.env$       / [R=302,L]
+
 # lascia passare file e cartelle reali (css, js, immagini, ecc.)
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
@@ -29,3 +40,4 @@ RewriteRule ^promuovi/?$ index.php?url=promuovi [L,QSA]
 
 # fallback per qualunque altra rotta
 RewriteRule ^([A-Za-z0-9_-]+)/?$ index.php?url=$1 [L,QSA]
+
