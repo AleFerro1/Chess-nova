@@ -128,14 +128,14 @@
 
     <script>
         console.log("Board.php caricato");
-        window.board = <?php echo json_encode($board); ?>;
-        window.turn  = "<?php echo $turn; ?>";
-        window.playerColor = "<?= $coloreGiocatore ?>";
-        window.fen = "<?= $fen ?>"; 
-        window.tempoBianco = <?= $tempo_bianco ?>;
-        window.tempoNero = <?= $tempo_nero ?>;
-        window.lastMoveTime = <?= $tempo_ultima_mossa ?>;
-        window.username = <?= json_encode($username) ?>
+        window.board        = <?= json_encode($board) ?>;
+        window.turn         = <?= json_encode($turn) ?>;
+        window.playerColor  = <?= json_encode($coloreGiocatore) ?>;
+        window.fen          = <?= json_encode($fen) ?>;
+        window.tempoBianco  = <?= (int)$tempo_bianco ?>;
+        window.tempoNero    = <?= (int)$tempo_nero ?>;
+        window.lastMoveTime = <?= (int)$tempo_ultima_mossa ?>;
+        window.username     = <?= json_encode($username) ?>;
 
         if (window.playerColor === 'nero') {
             const left = document.querySelector('.left');
@@ -151,28 +151,6 @@
             left.appendChild(topBar);
         }
     </script>
-
-    <script>
-        /*document.querySelector("#resignBtn").addEventListener("click", function () {
-            const id = sessionStorage.getItem("id_partita");
-
-            fetch("/resign?id=" + id, {
-                method: "POST",
-                credentials: "same-origin"
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    window.location.href = "/board/" + id;
-                }
-            });
-        });
-
-        document.querySelector("#esci").addEventListener("click", function () {
-            window.location.href = "/home";
-        });*/
-    </script>
-
     <script src="/js/game.js"></script>
 
 </body>
