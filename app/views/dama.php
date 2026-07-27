@@ -250,30 +250,17 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
         function avviaTimer() {
             if (intervalTimer) clearInterval(intervalTimer);
             intervalTimer = setInterval(() => {
-                if (gameOver) return;
                 if (currentTurn === 'w') {
                     tempoBianco--;
                     if (tempoBianco <= 0) {
                         tempoBianco = 0;
                         clearInterval(intervalTimer);
                         document.getElementById('timerBianco').classList.add('scaduto');
-                        // 1. Aggiorna il database
-                        fetch(`/timeoutGame?id=${window.gameId}&color=${window.playerColor}`, {
-                            method: 'POST',
-                            credentials: 'same-origin'
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.success) {
-                                // 2. Notifica l'avversario via WebSocket
-                                broadcastGameOver('timeout', (window.playerColor === 'bianco' ? 'nero' : 'bianco'));
-                                // 3. Mostra schermata
-                                endGame('Timeout', window.playerColor === 'bianco' ? 'Black wins!' : 'White wins!');
-                                playEndSound();
-                            } else {
-                                console.error("Errore aggiornamento timeout:", data.error);
-                            }
-                        });
+                        new Audio('/sounds/game-end.mp3').play();
+
+                        // --- TIMOUT BIANCO: vince il nero ---
+                        broadcastGameOver('timeout', 'nero');
+                        endGame('Timeout', 'Black wins!');
                     }
                 } else {
                     tempoNero--;
@@ -281,18 +268,11 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
                         tempoNero = 0;
                         clearInterval(intervalTimer);
                         document.getElementById('timerNero').classList.add('scaduto');
-                        fetch(`/timeoutGame?id=${window.gameId}&color=${window.playerColor}`, {
-                            method: 'POST',
-                            credentials: 'same-origin'
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.success) {
-                                broadcastGameOver('timeout', (window.playerColor === 'bianco' ? 'nero' : 'bianco'));
-                                endGame('Timeout', window.playerColor === 'bianco' ? 'Black wins!' : 'White wins!');
-                                playEndSound();
-                            }
-                        });
+                        new Audio('/sounds/game-end.mp3').play();
+
+                        // --- TIMEOUT NERO: vince il bianco ---
+                        broadcastGameOver('timeout', 'bianco');
+                        endGame('Timeout', 'White wins!');
                     }
                 }
                 aggiornaVisualTimer();
