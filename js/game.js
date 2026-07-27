@@ -14,7 +14,7 @@ let gameOver = false;
 // --- WebSocket -----------------------------------------------
 const gameId = sessionStorage.getItem("id_partita");
 const ws = new WebSocket(`wss://chessnova.win/wss/`);
-
+console.log('game.js caricato, gameId =', gameId);
 ws.onopen = () => {
     ws.send(JSON.stringify({
         type:     'join',
