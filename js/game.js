@@ -120,14 +120,12 @@ initTimerFromServer();
 // --- Timer ---------------------------------------------------
 
 function avviaTimer() {
-    console.log("Tempo bianco scaduto" + gameId);
     if (intervalTimer) clearInterval(intervalTimer);
     intervalTimer = setInterval(() => {
         if (gameOver) return;
         if (currentTurn === 'w') {
             tempoBianco--;
             if (tempoBianco <= 0) {
-                console.log("Tempo bianco scaduto" + gameId);
                 tempoBianco = 0;
                 clearInterval(intervalTimer);
                 document.getElementById('timerBianco').classList.add('scaduto');
@@ -155,7 +153,6 @@ function avviaTimer() {
             }
         } else {
             tempoNero--;
-            console.log("Tempo nero scaduto");
             if (tempoNero <= 0) {
                 tempoNero = 0;
                 clearInterval(intervalTimer);
