@@ -166,18 +166,19 @@ class ChessSocket implements MessageComponentInterface {
                 $fromSquare = $data['from'] ?? null;
                 $toSquare   = $data['to']   ?? null;
                 $piece      = $data['piece'] ?? null;
+                $tipo       = $data['tipo'] ?? 'scacchi';   // 'scacchi' o 'dama'
                 if (!$fromSquare || !$toSquare || !$piece) break;
 
                 $chessService = $this->gameInstances[$gameId] ?? null;
                 $currentFen   = $this->gameFens[$gameId] ?? null;
                 if (!$chessService || !$currentFen) break;
 
-                if (!$this->gameModel->canPlayerMakeMove($gameId, $username, $piece, 'scacchi')) {
+                if (!$this->gameModel->canPlayerMakeMove($gameId, $username, $piece, $tipo)) {
                     $from->send(json_encode(['type' => 'illegal_move', 'message' => 'Non è il tuo pezzo o non è il tuo turno']));
                     break;
                 }
 
-                $result = $chessService->isValidMove($currentFen, $piece, $fromSquare, $toSquare, 'scacchi');
+                $result = $chessService->isValidMove($currentFen, $piece, $fromSquare, $toSquare, $tipo);
                 if ($result === false) {
                     $from->send(json_encode(['type' => 'illegal_move', 'message' => 'Mossa non valida']));
                     break;
@@ -195,6 +196,7 @@ class ChessSocket implements MessageComponentInterface {
                             'from'     => $fromSquare,
                             'to'       => $toSquare,
                             'player'   => $from->resourceId,
+                            'tipo'     => $tipo,   // ricordiamo il tipo per gestire la promozione
                         ];
                         $from->send(json_encode(['type' => 'promotion_required', 'fen_base' => $result['fen_base']]));
                         break;
@@ -227,16 +229,26 @@ class ChessSocket implements MessageComponentInterface {
                 }
 
                 $nextTurn = $chessService->getTurn($newFen);
-                //$board    = $chessService->board;
 
-                if (!$chessService->hasLegalMoves($board, $nextTurn)) {
-                    $winnerColor = ($nextTurn === 'w') ? 'nero' : 'bianco';
-                    $reason      = $chessService->isKingInCheck($board, $nextTurn) ? 'checkmate' : 'stalemate';
-                    $this->finalizeGameOver($gameId, $reason, $winnerColor);
-                } elseif ($chessService->isFiftyMoveRule($newFen)
-                    || $chessService->repeatedMoves($this->moveHistory[$gameId] ?? [], $newFen)
-                    || !$chessService->hasEnoughPieces($newFen)) {
-                    $this->finalizeGameOver($gameId, 'draw', null);
+                // Controllo fine partita in base al tipo
+                if ($tipo === 'dama') {
+                    if (!$chessService->hasLegalMovesDama($board, $nextTurn)) {
+                        // Non ci sono mosse legali per il prossimo giocatore, quindi l'avversario ha vinto
+                        $winnerColor = ($nextTurn === 'w') ? 'nero' : 'bianco';
+                        $reason = 'checkmate';   // nella dama non c'è stallo, chi non può muovere perde
+                        $this->finalizeGameOver($gameId, $reason, $winnerColor);
+                    }
+                } else {
+                    // Scacchi
+                    if (!$chessService->hasLegalMoves($board, $nextTurn)) {
+                        $winnerColor = ($nextTurn === 'w') ? 'nero' : 'bianco';
+                        $reason      = $chessService->isKingInCheck($board, $nextTurn) ? 'checkmate' : 'stalemate';
+                        $this->finalizeGameOver($gameId, $reason, $winnerColor);
+                    } elseif ($chessService->isFiftyMoveRule($newFen)
+                        || $chessService->repeatedMoves($this->moveHistory[$gameId] ?? [], $newFen)
+                        || !$chessService->hasEnoughPieces($newFen)) {
+                        $this->finalizeGameOver($gameId, 'draw', null);
+                    }
                 }
                 break;
 

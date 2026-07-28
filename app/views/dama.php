@@ -1,33 +1,9 @@
 <?php
-session_start();
+// Assicurati che le variabili PHP siano definite come nella board degli scacchi
+// $board, $turn, $coloreGiocatore, $fen, $tempo_bianco, $tempo_nero, $tempo_ultima_mossa, $username, $id_partita, $nomeNero, $nomeBianco, $elo_nero, $elo_bianco, $timecontrol, $tipo_partita
 
-// ═══════════════════════════════════════════════
-// 1. Controlli di accesso e validazione variabili
-// ═══════════════════════════════════════════════
-if (!isset($_SESSION['username'], $_SESSION['id_partita'])) {
-    die('Accesso negato.');
-}
-$id_partita = $_SESSION['id_partita']; // MAI fidarsi del client!
-
-// Recupero dati partita (questi dovrebbero essere già stati estratti dal DB)
-$required = ['board', 'turn', 'fen', 'tempo_bianco', 'tempo_nero',
-             'tempo_ultima_mossa', 'coloreGiocatore', 'username',
-             'nomeBianco', 'nomeNero', 'elo_bianco', 'elo_nero', 'timecontrol'];
-foreach ($required as $var) {
-    if (!isset($$var)) $$var = null; // In produzione: lanciare eccezione
-}
-
-// Escape per output HTML
-$coloreGiocatore = htmlspecialchars($coloreGiocatore);
-$username        = htmlspecialchars($username);
-$nomeBianco      = htmlspecialchars($nomeBianco);
-$nomeNero        = htmlspecialchars($nomeNero);
-
-// Funzione helper per avatar
-function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
-    return !empty($data['avatar'])
-        ? '/public/' . htmlspecialchars($data['avatar'])
-        : $default;
+function getAvatarDama($data, $default = '/public/assets/img/redking.jpg') {
+    return !empty($data['avatar']) ? '/public/' . htmlspecialchars($data['avatar']) : $default;
 }
 ?>
 <!DOCTYPE html>
@@ -35,6 +11,7 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<?= $_SESSION['csrf_token'] ?>">
     <link rel="stylesheet" href="/styles/scacchiera.css">
     <link rel="icon" type="image/png" sizes="64x64" href="/images/favicon.png">
     <title>Italian Checkers - ChessNova</title>
@@ -43,7 +20,6 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
     <div class="layout">
         <div class="left">
             <?php
-                // ─── Variabili per evitare duplicazione ───
                 $isBianco = ($coloreGiocatore === 'bianco');
                 $topColor  = $isBianco ? 'nero'   : 'bianco';
                 $botColor  = $isBianco ? 'bianco' : 'nero';
@@ -52,12 +28,12 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
                 $topElo    = $isBianco ? $elo_nero   : $elo_bianco;
                 $botElo    = $isBianco ? $elo_bianco : $elo_nero;
             ?>
-            <!-- ─── Avversario (sopra) ─── -->
+            <!-- Avversario (in alto) -->
             <div class="top-bar">
                 <div class="player-info player-<?= $topColor ?>">
                     <div class="player-left">
                         <div class="player-avatar">
-                            <img src="<?= getAvatar($topElo) ?>" alt="Avatar">
+                            <img src="<?= getAvatarDama($topElo) ?>" alt="Avatar">
                         </div>
                         <div class="player-meta">
                             <div class="player-name">
@@ -79,12 +55,12 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
             <div id="scacchiera" class="scacchiera"></div>
             <button id="resignBtn" class="resign-btn">Resign</button>
 
-            <!-- ─── Giocatore locale (sotto) ─── -->
+            <!-- Giocatore locale (in basso) -->
             <div class="bottom-bar">
                 <div class="player-info player-<?= $botColor ?>">
                     <div class="player-left">
                         <div class="player-avatar">
-                            <img src="<?= getAvatar($botElo) ?>" alt="Avatar">
+                            <img src="<?= getAvatarDama($botElo) ?>" alt="Avatar">
                         </div>
                         <div class="player-meta">
                             <div class="player-name">
@@ -115,12 +91,11 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
         </div>
     </div>
 
-    <!-- Audio precaricato -->
     <audio id="endSound" src="/sounds/game-end.mp3" preload="auto"></audio>
 
     <script>
         // ═══════════════════════════════════════════
-        // 2. Passaggio sicuro variabili PHP → JS
+        // Variabili iniziali dal server
         // ═══════════════════════════════════════════
         window.board        = <?= json_encode($board) ?>;
         window.turn         = <?= json_encode($turn) ?>;
@@ -130,10 +105,16 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
         window.tempoNero    = <?= (int)$tempo_nero ?>;
         window.lastMoveTime = <?= (int)$tempo_ultima_mossa ?>;
         window.username     = <?= json_encode($username) ?>;
-        window.gameId       = <?= json_encode($id_partita) ?>;  // Ora dal server
+        window.gameId       = <?= json_encode($id_partita) ?>;
+        window.tipoPartita  = 'dama';   // per distinguere
 
         // ═══════════════════════════════════════════
-        // 3. WebSocket con riconnessione automatica
+        // CSRF Token
+        // ═══════════════════════════════════════════
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+
+        // ═══════════════════════════════════════════
+        // WebSocket con riconnessione
         // ═══════════════════════════════════════════
         let ws;
         let reconnectAttempts = 0;
@@ -156,12 +137,12 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
                 const data = JSON.parse(event.data);
                 switch (data.type) {
                     case 'opponent_move':
+                    case 'game_update':
                         currentFen   = data.fen;
                         window.board = fenToBoard(data.fen);
                         currentTurn  = data.turn;
 
                         if (data.timers) {
-                            // Correzione: struttura piatta
                             tempoBianco = parseInt(data.timers.bianco);
                             tempoNero   = parseInt(data.timers.nero);
                         }
@@ -169,13 +150,17 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
                         avviaTimer();
                         aggiornaVisualTimer();
 
-                        if (data.notation) {
+                        if (data.lastMove) {
+                            lastMove = {
+                                from: data.lastMove.from,
+                                to:   data.lastMove.to
+                            };
+                        } else if (data.notation) {
                             lastMove = { from: data.notation.from, to: data.notation.to };
                         }
 
                         document.getElementById('scacchiera').innerHTML = '';
                         renderBoard(window.board);
-                        // Rimossa chiamata a updateRecord inesistente
                         break;
 
                     case 'game_over':
@@ -185,9 +170,7 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
             };
 
             ws.onerror = (e) => console.error('WebSocket error:', e);
-
             ws.onclose = () => {
-                console.log('WebSocket chiuso, riconnessione...');
                 const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), maxReconnectDelay);
                 reconnectAttempts++;
                 setTimeout(connectWebSocket, delay);
@@ -197,7 +180,7 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
         connectWebSocket();
 
         // ═══════════════════════════════════════════
-        // 4. Stato globale
+        // Stato globale
         // ═══════════════════════════════════════════
         let selected = null;
         let currentTurn = window.turn || 'w';
@@ -210,7 +193,7 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
         let gameOver = false;
 
         // ═══════════════════════════════════════════
-        // 5. Funzioni di supporto
+        // Funzioni di supporto
         // ═══════════════════════════════════════════
         function fenToBoard(fen) {
             const board = Array.from({ length: 8 }, () => Array(8).fill(null));
@@ -242,9 +225,9 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
 
         function aggiornaVisualTimer() {
             document.getElementById('timerBianco').textContent = formatTime(tempoBianco);
-            document.getElementById('timerNero').textContent = formatTime(tempoNero);
+            document.getElementById('timerNero').textContent   = formatTime(tempoNero);
             document.getElementById('timerBianco').classList.toggle('attivo', currentTurn === 'w');
-            document.getElementById('timerNero').classList.toggle('attivo', currentTurn === 'b');
+            document.getElementById('timerNero').classList.toggle('attivo',   currentTurn === 'b');
         }
 
         function avviaTimer() {
@@ -254,38 +237,35 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
                 if (currentTurn === 'w') {
                     tempoBianco--;
                     if (tempoBianco <= 0) {
-                        console.log("Tempo bianco scaduto" + window.gameId);
                         tempoBianco = 0;
                         clearInterval(intervalTimer);
                         document.getElementById('timerBianco').classList.add('scaduto');
-                        // 1. Aggiorna il database
-                        fetch(`/timeoutGame?id=${window.gameId}&color=bianco`, {
+                        fetch('/timeoutGame', {
                             method: 'POST',
-                            credentials: 'same-origin'
+                            credentials: 'same-origin',
+                            headers: { 'X-CSRF-Token': csrfToken },
+                            body: new URLSearchParams({ id: window.gameId, color: 'bianco' })
                         })
                         .then(res => res.json())
                         .then(data => {
                             if (data.success) {
-                                // 2. Notifica l'avversario via WebSocket
                                 broadcastGameOver('timeout', (window.playerColor === 'bianco' ? 'nero' : 'bianco'));
-                                // 3. Mostra schermata
                                 endGame('Timeout', window.playerColor === 'bianco' ? 'Black wins!' : 'White wins!');
                                 playEndSound();
-                            } else {
-                                console.error("Errore aggiornamento timeout:", data.error);
                             }
                         });
                     }
                 } else {
                     tempoNero--;
-                    console.log("Tempo nero scaduto");
                     if (tempoNero <= 0) {
                         tempoNero = 0;
                         clearInterval(intervalTimer);
                         document.getElementById('timerNero').classList.add('scaduto');
-                        fetch(`/timeoutGame?id=${window.gameId}&color=nero`, {
+                        fetch('/timeoutGame', {
                             method: 'POST',
-                            credentials: 'same-origin'
+                            credentials: 'same-origin',
+                            headers: { 'X-CSRF-Token': csrfToken },
+                            body: new URLSearchParams({ id: window.gameId, color: 'nero' })
                         })
                         .then(res => res.json())
                         .then(data => {
@@ -314,7 +294,7 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
         }
 
         // ═══════════════════════════════════════════
-        // 6. Rendering scacchiera
+        // Rendering scacchiera dama
         // ═══════════════════════════════════════════
         function renderBoard(board) {
             const scacchiera = document.getElementById("scacchiera");
@@ -330,6 +310,16 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
                     square.className = (row + col) % 2 === 0 ? "casellaBianca" : "casellaNera";
                     square.dataset.row = row;
                     square.dataset.col = col;
+
+                    // evidenzia ultima mossa
+                    if (lastMove) {
+                        if ((row === lastMove.from[0] && col === lastMove.from[1]) ||
+                            (row === lastMove.to[0]   && col === lastMove.to[1])) {
+                            square.classList.add(
+                                square.classList.contains("casellaBianca") ? "lastMoveBianca" : "lastMoveNera"
+                            );
+                        }
+                    }
 
                     if (legalSquares.some(m => m[0] === row && m[1] === col)) {
                         square.classList.add(board[row][col] !== null ? "legalCapture" : "legalMove");
@@ -348,6 +338,7 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
                         img.className = "pedina";
                         square.appendChild(img);
                     }
+
                     square.addEventListener("click", () => handleClick(row, col, board, square));
                     scacchiera.appendChild(square);
                 }
@@ -355,7 +346,7 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
         }
 
         // ═══════════════════════════════════════════
-        // 7. Gestione click e mosse
+        // Gestione click e mosse (dama)
         // ═══════════════════════════════════════════
         function handleClick(i, j, board, square) {
             if (gameOver) return;
@@ -364,10 +355,10 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
                 const piece = board[i][j];
                 const isWhitePiece = (piece === 'w' || piece === 'W');
                 if (currentTurn === 'w' && !isWhitePiece) return;
-                if (currentTurn === 'b' && isWhitePiece) return;
+                if (currentTurn === 'b' && isWhitePiece)  return;
                 selectPiece(i, j, piece);
             } else {
-                const isWhitePiece = board[i][j] !== null && (board[i][j] === 'W' || board[i][j] === 'w');
+                const isWhitePiece = board[i][j] !== null && (board[i][j] === 'w' || board[i][j] === 'W');
                 const isMyPiece = board[i][j] !== null &&
                     ((currentTurn === 'w' && isWhitePiece) || (currentTurn === 'b' && !isWhitePiece));
 
@@ -376,74 +367,106 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
                     return;
                 }
 
-                const savedSelected = { ...selected };
-                const turnBeforeMove = currentTurn;
+                const savedSelected  = { ...selected };
                 selected.element.classList.remove("selected");
-                selected = null;
+                selected     = null;
                 legalSquares = [];
 
                 fetch("/dama?id=" + window.gameId, {
                     method: "POST",
                     credentials: "same-origin",
+                    headers: { 'X-CSRF-Token': csrfToken },
                     body: new URLSearchParams({
                         piece: savedSelected.piece,
-                        from: toSquare(savedSelected.i, savedSelected.j),
-                        to: toSquare(i, j)
+                        from:  toSquare(savedSelected.i, savedSelected.j),
+                        to:    toSquare(i, j)
                     })
                 })
                 .then(res => res.json())
                 .then(data => {
                     if (data.promozione) {
-                        showPromoMenu(data.fen_base, toSquare(i, j), turnBeforeMove);
+                        // Promozione automatica (dama)
+                        fetch("/promuovi?id=" + window.gameId, {
+                            method: "POST",
+                            credentials: "same-origin",
+                            headers: { 'X-CSRF-Token': csrfToken },
+                            body: new URLSearchParams({
+                                fen_base: data.fen_base,
+                                promo: 'q',
+                                to: toSquare(i, j),
+                                turn: currentTurn,
+                                tipo: 'dama'
+                            })
+                        })
+                        .then(r => r.json())
+                        .then(promoData => {
+                            if (promoData.success) {
+                                applyMoveUpdate(promoData, savedSelected);
+                            }
+                        });
                         return;
                     }
-                    console.log(data.tempo.tempo);
-                    if (data.success) {
-                        if (data.tempo) {
-                            //const nuovoTempo = parseInt(data.tempo.tempo.tempo_bianco);
-                            if (data.tempo.colore === 'w') {
-                                tempoBianco = parseInt(data.tempo.tempo.tempo_bianco);
-                            } else {
-                                tempoNero = parseInt(data.tempo.tempo.tempo_nero);
-                            }
-                            avviaTimer();
-                            aggiornaVisualTimer();
-                        }
-                        currentFen = data.fen;
-                        window.board = data.board;
-                        currentTurn = data.turn;
-                        document.getElementById("scacchiera").innerHTML = '';
-                        renderBoard(window.board);
 
-                        ws.send(JSON.stringify({
-                            type:     'move',
-                            game_id:  window.gameId,
-                            fen:      data.fen,
-                            turn:     currentTurn,
-                            moves:    data.storico?.moves ?? [],
-                            timers:   { bianco: tempoBianco, nero: tempoNero },
-                            notation: data.notation ?? null,
-                        }));
-
-                        if (data.checkmate) {
-                            endGame('Checkmate', data.winner === 'bianco' ? 'White wins!' : 'Black wins!');
-                            broadcastGameOver('checkmate', data.winner);
-                            return;
-                        }
-                        if (data.notation && data.notation.from && data.notation.to) {
-                            lastMove = { from: data.notation.from, to: data.notation.to };
-                        }
-                    } else {
+                    if (!data.success) {
                         selectPiece(savedSelected.i, savedSelected.j, savedSelected.piece);
+                        return;
                     }
+
+                    applyMoveUpdate(data, savedSelected);
                 });
+            }
+        }
+
+        function applyMoveUpdate(data, savedSelected) {
+            if (data.tempo) {
+                if (data.tempo.colore === 'w') {
+                    tempoBianco = parseInt(data.tempo.tempo.tempo_bianco);
+                } else {
+                    tempoNero = parseInt(data.tempo.tempo.tempo_nero);
+                }
+                avviaTimer();
+                aggiornaVisualTimer();
+            }
+
+            currentFen   = data.fen;
+            window.board = data.board;
+            currentTurn  = data.turn ?? (currentTurn === 'w' ? 'b' : 'w');
+
+            document.getElementById('scacchiera').innerHTML = '';
+            renderBoard(window.board);
+
+            if (data.notation && data.notation.from) {
+                lastMove = { from: data.notation.from, to: data.notation.to };
+            }
+
+            // Notifica avversario via WebSocket
+            ws.send(JSON.stringify({
+                type:     'move',
+                game_id:  window.gameId,
+                fen:      data.fen,
+                turn:     currentTurn,
+                moves:    [],
+                timers:   { bianco: tempoBianco, nero: tempoNero },
+                notation: data.notation ?? null,
+                tipo:     'dama'
+            }));
+
+            if (data.checkmate) {
+                endGame('Checkmate', data.winner === 'bianco' ? 'White wins!' : 'Black wins!');
+                broadcastGameOver('checkmate', data.winner);
+                return;
+            }
+            if (data.stalemate) {
+                endGame('Draw', 'Stalemate');
+                broadcastGameOver('stalemate');
+                return;
             }
         }
 
         function selectPiece(i, j, piece) {
             if (selected) selected.element.classList.remove("selected");
             legalSquares = [];
-            document.getElementById("scacchiera").innerHTML = '';
+            document.getElementById('scacchiera').innerHTML = '';
             renderBoard(window.board);
 
             const element = document.querySelector(
@@ -455,19 +478,20 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
             fetch("/legal-moves?id=" + window.gameId, {
                 method: "POST",
                 credentials: "same-origin",
+                headers: { 'X-CSRF-Token': csrfToken },
                 body: new URLSearchParams({ piece, from: toSquare(i, j) })
             })
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
                     legalSquares = data.moves;
-                    document.getElementById("scacchiera").innerHTML = '';
+                    document.getElementById('scacchiera').innerHTML = '';
                     renderBoard(window.board);
-                    const newElement = document.querySelector(
+                    const newEl = document.querySelector(
                         `.casellaBianca[data-row="${i}"][data-col="${j}"], .casellaNera[data-row="${i}"][data-col="${j}"]`
                     );
-                    if (newElement) {
-                        selected.element = newElement;
+                    if (newEl) {
+                        selected.element = newEl;
                         selected.element.classList.add("selected");
                     }
                 }
@@ -475,41 +499,7 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
         }
 
         // ═══════════════════════════════════════════
-        // 8. Promozione
-        // ═══════════════════════════════════════════
-        function showPromoMenu(fenBase, to, turn) {
-            fetch("/promuovi?id=" + window.gameId, {
-                method: "POST",
-                credentials: "same-origin",
-                body: new URLSearchParams({ fen_base: fenBase, promo: 'q', to: to, turn: turn })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    currentFen = data.fen;
-                    window.board = data.board;
-                    currentTurn = data.turn !== undefined ? data.turn : (currentTurn === 'w' ? 'b' : 'w');
-                    document.getElementById("scacchiera").innerHTML = '';
-                    renderBoard(window.board);
-
-                    ws.send(JSON.stringify({
-                        type:     'move',
-                        game_id:  window.gameId,
-                        fen:      data.fen,
-                        turn:     currentTurn,
-                        moves:    data.storico?.moves ?? [],
-                        timers:   { bianco: tempoBianco, nero: tempoNero },
-                        notation: data.notation ?? null,
-                    }));
-
-                    if (data.checkmate) endGame("Checkmate", data.winner === "bianco" ? "White wins" : "Black wins");
-                    else if (data.stalemate) endGame("Draw", "Stalemate");
-                }
-            });
-        }
-
-        // ═══════════════════════════════════════════
-        // 9. Fine partita
+        // Fine partita e abbandono
         // ═══════════════════════════════════════════
         function endGame(title, reason) {
             if (gameOver) return;
@@ -550,9 +540,6 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
             playEndSound();
         }
 
-        // ═══════════════════════════════════════════
-        // 10. Audio sicuro
-        // ═══════════════════════════════════════════
         function playEndSound() {
             const audio = document.getElementById('endSound');
             if (audio) {
@@ -561,12 +548,14 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
             }
         }
 
-        // ═══════════════════════════════════════════
-        // 11. Abbandono
-        // ═══════════════════════════════════════════
         document.querySelector("#resignBtn").addEventListener("click", function () {
             if (gameOver) return;
-            fetch("/resign?id=" + window.gameId, { method: "POST", credentials: "same-origin" })
+            fetch("/resign", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { 'X-CSRF-Token': csrfToken },
+                body: new URLSearchParams({ id: window.gameId })
+            })
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
@@ -580,15 +569,12 @@ function getAvatar($data, $default = '/public/assets/img/redking.jpg') {
             });
         });
 
-        // ═══════════════════════════════════════════
-        // 12. Pulsante Home
-        // ═══════════════════════════════════════════
         document.querySelector("#esci").addEventListener("click", function () {
             window.location.href = "/home";
         });
 
         // ═══════════════════════════════════════════
-        // 13. Avvio
+        // Avvio
         // ═══════════════════════════════════════════
         renderBoard(window.board);
         initTimerFromServer();
