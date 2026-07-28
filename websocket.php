@@ -217,7 +217,6 @@ class ChessSocket implements MessageComponentInterface {
                     'fen'      => $newFen,
                     'turn'     => $chessService->getTurn($newFen),
                     'moves'    => [],
-                    'timers'   => [],
                     'notation' => $fromSquare . $toSquare,
                     'lastMove' => ['from' => $fromSquare, 'to' => $toSquare],
                 ];

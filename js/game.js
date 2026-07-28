@@ -40,7 +40,7 @@ ws.onmessage = (event) => { // Gestisce i messaggi ricevuti dal server WebSocket
             window.board = fenToBoard(data.fen);
             currentTurn  = data.turn;
 
-            if (data.timers) {
+            if (data.timers && data.timers.bianco !== undefined && data.timers.nero !== undefined) {
                 tempoBianco = parseInt(data.timers.bianco);
                 tempoNero   = parseInt(data.timers.nero);
             }
