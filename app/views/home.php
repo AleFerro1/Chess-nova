@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<?= $_SESSION['csrf_token'] ?>">
     <title>ChessNova — Play Chess and Checkers Online</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -592,11 +593,22 @@
         })();
 
         // Heartbeat
-        function heartbeat() {
-            fetch('./heartbeat', { method: 'POST', credentials: 'same-origin', keepalive: true }).catch(() => {});
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+
+        function sendHeartbeat() {
+            fetch('/heartbeat', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'X-CSRF-Token': csrfToken
+                }
+            })
+            .catch(err => console.warn('Heartbeat failed:', err));
         }
-        heartbeat();
-        setInterval(heartbeat, 30000);
+
+        // Avvia il heartbeat periodico
+        setInterval(sendHeartbeat, 30000);
+        sendHeartbeat(); // primo invio
     </script>
 
 </body>
