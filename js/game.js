@@ -24,11 +24,18 @@ ws.onopen = () => { // Invia un messaggio al server WebSocket per unirsi alla pa
 };
 
 ws.onmessage = (event) => { // Gestisce i messaggi ricevuti dal server WebSocket
-    const data = JSON.parse(event.data);
+    let data;
+    try {
+        data = JSON.parse(event.data);
+    } catch (e) {
+        console.warn('Messaggio WS non JSON, ignorato:', event.data);
+        return;
+    }
 
     switch (data.type) {
 
         case 'opponent_move':
+        case 'game_update':
             currentFen   = data.fen;
             window.board = fenToBoard(data.fen);
             currentTurn  = data.turn;
@@ -41,7 +48,12 @@ ws.onmessage = (event) => { // Gestisce i messaggi ricevuti dal server WebSocket
             avviaTimer();
             aggiornaVisualTimer();
 
-            if (data.notation) {
+            if (data.lastMove) {
+                lastMove = {
+                    from: squareToCoords(data.lastMove.from),
+                    to:   squareToCoords(data.lastMove.to),
+                };
+            } else if (data.notation) {
                 lastMove = { from: data.notation.from, to: data.notation.to };
             }
 
@@ -50,11 +62,23 @@ ws.onmessage = (event) => { // Gestisce i messaggi ricevuti dal server WebSocket
 
             if (data.moves) updateRecord({ moves: data.moves });
 
-            
+            break;
+
+        case 'illegal_move':
+            console.warn('Mossa rifiutata dal server:', data.message);
+            break;
+
+        case 'promotion_required':
+            // gestito già lato client via fetch("/board?id=..."); qui solo log difensivo
+            console.log('Promozione richiesta:', data.fen_base);
             break;
 
         case 'game_over':
             handleGameOver(data);
+            break;
+
+        case 'error':
+            console.error('Errore WS:', data.message);
             break;
     }
 };
@@ -405,6 +429,16 @@ function selectPiece(i, j, piece) {
 function toSquare(i, j) {
     const files = ["a","b","c","d","e","f","g","h"];
     return files[j] + (8 - i);
+}
+
+// Converte una casella in notazione scacchistica (es. "e4") in coordinate [riga, colonna]
+// coerenti con l'array della scacchiera usato da renderBoard().
+function squareToCoords(square) {
+    if (Array.isArray(square)) return square; // già in formato [riga, colonna]
+    const files = ["a","b","c","d","e","f","g","h"];
+    const col = files.indexOf(square[0]);
+    const row = 8 - parseInt(square.slice(1), 10);
+    return [row, col];
 }
 
 function fenToBoard(fen) {
