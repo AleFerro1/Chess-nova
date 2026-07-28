@@ -365,4 +365,16 @@ class GameModel {
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row['colore_utente'] ?? false;
     }
+
+    public function getWinnerColor(int $id_partita): ?string
+    {
+        $stmt = $this->pdo->prepare("
+            SELECT colore_utente FROM collegamento_partite
+            WHERE id_partita = :id AND outcome = 'Winner'
+            LIMIT 1
+        ");
+        $stmt->execute(['id' => $id_partita]);
+        $c = $stmt->fetchColumn();
+        return $c ?: null;
+    }
 }

@@ -13,6 +13,7 @@ use App\Services\ChessServices;
 use App\Models\GameModel;
 
 
+
 /**
  * Legge una sessione PHP senza session_start().
  *
@@ -86,6 +87,39 @@ class ChessSocket implements MessageComponentInterface
     public function __construct(GameModel $gameModel)
     {
         $this->gameModel = $gameModel;
+    }
+
+    protected function broadcastGameOverFromState(int $gameId): void
+    {
+        try {
+            $game = $this->gameModel->getState($gameId);
+        } catch (\Throwable $e) {
+            return;
+        }
+
+        $stato = $game['stato_partita'] ?? null;
+        if (!$stato || $stato === 'in corso') return;
+
+        $reasonMap = [
+            'Checkmate'             => 'checkmate',
+            'Stalemate'             => 'stalemate',
+            'Threefold repetition'  => 'threefold',
+            '50 moves'              => 'fifty_moves',
+            'Insufficient material' => 'insufficient',
+            'Timeout'               => 'timeout',
+            'Resign bianco'         => 'resign_bianco',
+            'Resign nero'           => 'resign_nero',
+        ];
+        $reason = $reasonMap[$stato] ?? null;
+        if (!$reason) return;
+
+        $winner = $this->gameModel->getWinnerColor($gameId);
+
+        $this->broadcast($gameId, [
+            'type'   => 'game_over',
+            'reason' => $reason,
+            'winner' => $winner,
+        ]);
     }
 
 
@@ -386,17 +420,6 @@ class ChessSocket implements MessageComponentInterface
          * il tipo di partita viene recuperato dal DB.
          * Non viene mai preso da $data['tipo'].
          */
-        if ($type === 'move') {
-
-            $this->handleChessMove(
-                $from,
-                $gameId,
-                $meta['username'],
-                $data
-            );
-
-            return;
-        }
 
 
         /*
@@ -406,11 +429,7 @@ class ChessSocket implements MessageComponentInterface
          * Prima leggiamo lo stato reale dal DB.
          */
         if ($type === 'game_over') {
-
-            $this->broadcastCurrentGameState(
-                $gameId
-            );
-
+            $this->broadcastGameOverFromState($gameId);
             return;
         }
     }

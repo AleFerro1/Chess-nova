@@ -142,4 +142,8 @@ class GameController {
     public function getPlayerColorForGame(int $id_partita, string $username){
         return $this->game_model->getPlayerColorForGame($id_partita, $username);
     }
+
+    public function getWinnerColor(int $id_partita){
+        return $this->game_model->getWinnerColor($id_partita);
+    }
 }

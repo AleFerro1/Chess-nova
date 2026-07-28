@@ -336,12 +336,7 @@ function handleClick(i, j, board, square) {
             if (data.storico) updateRecord(data.storico);
 
             // -- Notifica avversario via WebSocket --
-            ws.send(JSON.stringify({
-                type: 'move',
-                from: toSquare(savedSelected.i, savedSelected.j),
-                to: toSquare(i, j),
-                piece: savedSelected.piece,
-            }));
+            ws.send(JSON.stringify({ type: 'sync' }));
 
             // -- Game over --
             if (data.checkmate) {
@@ -489,15 +484,7 @@ function showPromoMenu(fenBase, to, turn) {
                 document.getElementById('scacchiera').innerHTML = '';
                 renderBoard(window.board);
 
-                ws.send(JSON.stringify({
-                    type:     'move',
-                    game_id:  gameId,
-                    fen:      data.fen,
-                    turn:     currentTurn,
-                    moves:    [],
-                    timers:   { bianco: tempoBianco, nero: tempoNero },
-                    notation: data.notation ?? null,
-                }));
+                ws.send(JSON.stringify({ type: 'sync' }));
 
                 if (data.checkmate || data.stalemate) {
                     const reason = data.checkmate ? 'checkmate' : 'stalemate';
