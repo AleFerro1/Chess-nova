@@ -1,6 +1,7 @@
 <?php
 require 'vendor/autoload.php';
 require 'app/models/GameModel.php';
+require_once __DIR__ . '/app/services/ChessServices.php';
 
 use Ratchet\MessageComponentInterface;
 use Ratchet\ConnectionInterface;
