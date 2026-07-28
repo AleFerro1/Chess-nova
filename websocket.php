@@ -1,6 +1,18 @@
 <?php
-session_start();
 require 'vendor/autoload.php';
+
+// FIX #1: senza questo, getenv('DB_USER')/getenv('DB_PASSWORD') più sotto
+// restituiscono false e il new PDO() crasha il processo all'avvio.
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
+
+// FIX #2: rimosso il session_start() che stava qui in cima al file.
+// Avviava una sessione "vuota" del processo CLI ancora prima che
+// qualunque client si connettesse, il che impediva a session_id($sessionId)
+// dentro onOpen() di funzionare (non si può cambiare l'id di una sessione
+// già attiva). Risultato: $_SESSION['token'] non veniva mai popolato e
+// ogni connessione finiva rigettata come "Non autenticato".
+// La gestione della sessione ora avviene SOLO per-connessione dentro onOpen().
 
 use Ratchet\MessageComponentInterface;
 use Ratchet\ConnectionInterface;
@@ -19,9 +31,6 @@ class ChessSocket implements MessageComponentInterface {
     protected array $gameFens      = []; // gameId => FEN corrente (autorevole lato server)
     protected array $moveHistory   = []; // gameId => storico mosse (per repeatedMoves)
 
-    // -----------------------------------------------------------------
-    // FIX #4: dominio/i autorizzati per il controllo Origin (fix #3)
-    // -----------------------------------------------------------------
     protected array $allowedOrigins = [
         'https://chessnova.win',
         'https://www.chessnova.win',
@@ -35,17 +44,11 @@ class ChessSocket implements MessageComponentInterface {
 
     public function onOpen(ConnectionInterface $conn) {
 
-        // -------------------------------------------------------------
-        // FIX #3: verifica dell'header Origin PRIMA di qualsiasi altra cosa.
-        // Senza questo controllo, un sito esterno può aprire una connessione
-        // WS verso chessnova.win dal browser della vittima: il cookie di
-        // sessione parte comunque, quindi il sito esterno "eredita" la sessione
-        // autenticata (Cross-Site WebSocket Hijacking).
-        // -------------------------------------------------------------
         $originHeader = $conn->httpRequest->getHeader('Origin');
         $origin       = $originHeader[0] ?? null;
 
         if (!$origin || !in_array($origin, $this->allowedOrigins, true)) {
+            echo "Connessione rifiutata: Origin non consentito ({$origin})\n";
             $conn->close();
             return;
         }
@@ -64,20 +67,23 @@ class ChessSocket implements MessageComponentInterface {
             }
         }
 
-        // Piccola validazione di formato prima di passarlo a session_id()
         if (!$sessionId || !preg_match('/^[a-zA-Z0-9,\-]{22,250}$/', $sessionId)) {
+            echo "Connessione rifiutata: PHPSESSID mancante o malformato\n";
             $conn->send('Sessione mancante');
             $conn->close();
             return;
         }
 
-        // 2. Collega questa connessione alla sessione esistente
+        // 2. Collega questa connessione alla sessione esistente.
+        // Qui non c'è più nessuna sessione già attiva dal top-level, quindi
+        // session_id() può impostare correttamente l'id ricevuto dal cookie.
         session_id($sessionId);
         session_start();
 
         // 3. Verifica il token o qualsiasi dato di autenticazione
         $token = $_SESSION['token'] ?? null;
         if (!$token) {
+            echo "Connessione rifiutata: nessun token in sessione (sid={$sessionId})\n";
             session_write_close();
             $conn->send('Non autenticato');
             $conn->close();
@@ -97,15 +103,10 @@ class ChessSocket implements MessageComponentInterface {
             return;
         }
 
-        // 6. Rilascia il lock della sessione IMMEDIATAMENTE
+        // 6. Rilascia il lock della sessione IMMEDIATAMENTE, così le altre
+        // richieste HTTP dello stesso utente non restano bloccate in attesa.
         session_write_close();
 
-        // -------------------------------------------------------------
-        // FIX #1 (parte 1): recupera dal DB il colore assegnato a QUESTO
-        // utente in QUESTA partita, e lo salva nella connMeta. Da qui in
-        // avanti il server sa con certezza chi può muovere cosa, senza
-        // doversi fidare del client.
-        // -------------------------------------------------------------
         $colore = $this->gameModel->getPlayerColor($username); // 'bianco' | 'nero'
         if (!$colore) {
             $conn->send('Impossibile determinare il colore del giocatore');
@@ -129,18 +130,12 @@ class ChessSocket implements MessageComponentInterface {
             $this->gameInstances[$gameId] = new ChessServices();
         }
 
-        // -------------------------------------------------------------
-        // FIX bug: $this->gameFens[$gameId] non veniva mai inizializzato,
-        // quindi la prima mossa di ogni partita falliva sempre (il codice
-        // faceva "break" su $currentFen nullo). Lo recuperiamo dal DB, che
-        // è la fonte di verità dello stato partita.
-        // -------------------------------------------------------------
         if (!isset($this->gameFens[$gameId])) {
             $state = $this->gameModel->getState((int) $gameId);
             $this->gameFens[$gameId] = $state['fen'] ?? null;
         }
 
-        echo "Nuova connessione: {$conn->resourceId}\n";
+        echo "Nuova connessione: {$conn->resourceId} ({$username})\n";
     }
 
     public function onMessage(ConnectionInterface $from, $msg) {
@@ -174,16 +169,6 @@ class ChessSocket implements MessageComponentInterface {
                 $currentFen   = $this->gameFens[$gameId] ?? null;
                 if (!$chessService || !$currentFen) break;
 
-                // -----------------------------------------------------
-                // FIX #1 (parte 2): verifica che il pezzo dichiarato
-                // appartenga davvero al giocatore che sta inviando la
-                // mossa, usando il colore salvato in onOpen (dal DB) e
-                // la logica già presente in GameModel::canPlayerMakeMove.
-                // Senza questo controllo, isValidMove() da sola valida
-                // solo "è il turno del colore corretto secondo il FEN",
-                // ma non lega la mossa all'identità del mittente: un
-                // client malevolo potrebbe inviare mosse per l'avversario.
-                // -----------------------------------------------------
                 if (!$this->gameModel->canPlayerMakeMove($gameId, $username, $piece, 'scacchi')) {
                     $from->send(json_encode(['type' => 'illegal_move', 'message' => 'Non è il tuo pezzo o non è il tuo turno']));
                     break;
@@ -217,12 +202,10 @@ class ChessSocket implements MessageComponentInterface {
 
                 if (!$newFen) break;
 
-                // Aggiorna lo stato autorevole della partita
                 $this->gameFens[$gameId] = $newFen;
                 $this->moveHistory[$gameId][] = ['fen' => $newFen];
                 $chessService->createBoard($newFen);
 
-                // Persisti anche su DB, così è coerente con /board, /resign, ecc.
                 $this->gameModel->updateState((int) $gameId, $newFen);
                 $this->gameModel->updateMoves((int) $gameId, $fromSquare . $toSquare, $newFen);
 
@@ -231,11 +214,6 @@ class ChessSocket implements MessageComponentInterface {
                     'fen'      => $newFen,
                     'turn'     => $chessService->getTurn($newFen),
                     'moves'    => [],
-                    // FIX #2b: i timer non vengono più ripresi ciecamente dal
-                    // client (vedi anche i controlli fatti a monte in /board).
-                    // Qui ci limitiamo a NON ripubblicare $data['timers'] come
-                    // valore autorevole; se vuoi sincronizzarli, recuperali da
-                    // GameModel::getTime() invece che dal payload del client.
                     'timers'   => [],
                     'notation' => $fromSquare . $toSquare,
                     'lastMove' => ['from' => $fromSquare, 'to' => $toSquare],
@@ -246,7 +224,6 @@ class ChessSocket implements MessageComponentInterface {
                     $conn->send(json_encode($update));
                 }
 
-                // Controlli fine partita — determinati SOLO dal server
                 $nextTurn = $chessService->getTurn($newFen);
                 $board    = $chessService->board;
 
@@ -263,30 +240,17 @@ class ChessSocket implements MessageComponentInterface {
                 break;
 
             case 'game_over':
-                // -----------------------------------------------------
-                // FIX #2: NON ci fidiamo più di $data['reason'] / $data['winner']
-                // inviati dal client. Gestiamo solo i due casi che possono
-                // legittimamente arrivare come notifica "a posteriori" da un
-                // client (resign, timeout), e li verifichiamo contro lo stato
-                // reale salvato su DB da /resign e /timeoutGame — che sono
-                // endpoint HTTP autenticati via sessione, quindi affidabili.
-                // Qualsiasi altro reason (checkmate, stalemate, draw, ecc.)
-                // viene ignorato: quelli li determina SOLO il server nel
-                // ramo 'move' qui sopra.
-                // -----------------------------------------------------
                 $gameId = $meta['game_id'] ?? null;
                 if (!$gameId) break;
 
                 $reason = $data['reason'] ?? null;
                 if (!in_array($reason, ['resign_bianco', 'resign_nero', 'timeout'], true)) {
-                    break; // reason non consentito da questo canale
+                    break;
                 }
 
                 $state = $this->gameModel->getState((int) $gameId);
                 $stato = $state['stato_partita'] ?? '';
 
-                // Il DB deve già riflettere un abbandono/timeout prima che
-                // accettiamo di rilanciare l'evento agli altri client.
                 if (!str_starts_with($stato, 'Resign') && $stato !== 'timeout') {
                     break;
                 }
@@ -302,10 +266,6 @@ class ChessSocket implements MessageComponentInterface {
         }
     }
 
-    /**
-     * Determina reason/winner solo lato server, aggiorna il DB
-     * (stato partita, vincitore/pareggio, elo) e notifica la stanza.
-     */
     protected function finalizeGameOver(string $gameId, string $reason, ?string $winnerColor): void {
         if ($winnerColor) {
             $this->gameModel->updateWinner($winnerColor, (int) $gameId);
@@ -339,11 +299,6 @@ class ChessSocket implements MessageComponentInterface {
     }
 }
 
-// ---------------------------------------------------------------------
-// Bootstrap: istanzia PDO e GameModel e passali al costruttore.
-// Adatta questa parte alla tua configurazione DB esistente
-// (probabilmente hai già un file di bootstrap/config simile altrove).
-// ---------------------------------------------------------------------
 $pdo = new PDO(
     'mysql:host=localhost;dbname=chessnova;charset=utf8mb4',
     getenv('DB_USER'),

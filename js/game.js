@@ -108,9 +108,13 @@ function avviaTimer() {
                 clearInterval(intervalTimer);
                 document.getElementById('timerBianco').classList.add('scaduto');
                 // 1. Aggiorna il database
-                fetch(`/timeoutGame?id=${gameId}&color=bianco`, {
+                // FIX: id/color ora nel body POST invece che in query string,
+                // perché index.php ora legge $_POST['id'] / $_POST['color']
+                // (serve per il controllo di ownership per-partita).
+                fetch(`/timeoutGame`, {
                     method: 'POST',
-                    credentials: 'same-origin'
+                    credentials: 'same-origin',
+                    body: new URLSearchParams({ id: gameId, color: 'bianco' })
                 })
                 .then(res => res.json())
                 .then(data => {
@@ -132,9 +136,10 @@ function avviaTimer() {
                 tempoNero = 0;
                 clearInterval(intervalTimer);
                 document.getElementById('timerNero').classList.add('scaduto');
-                fetch(`/timeoutGame?id=${gameId}&color=nero`, {
+                fetch(`/timeoutGame`, {
                     method: 'POST',
-                    credentials: 'same-origin'
+                    credentials: 'same-origin',
+                    body: new URLSearchParams({ id: gameId, color: 'nero' })
                 })
                 .then(res => res.json())
                 .then(data => {
@@ -142,6 +147,8 @@ function avviaTimer() {
                         broadcastGameOver('timeout', (window.playerColor === 'bianco' ? 'nero' : 'bianco'));
                         endGame('Timeout', window.playerColor === 'bianco' ? 'Black wins!' : 'White wins!');
                         playEndSound();
+                    } else {
+                        console.error("Errore aggiornamento timeout:", data.error);
                     }
                 });
             }
@@ -332,7 +339,14 @@ function handleClick(i, j, board, square) {
 // --- Resign --------------------------------------------------
 
 document.querySelector("#resignBtn").addEventListener("click", function () {
-    fetch("/resign?id=" + gameId, { method: "POST", credentials: "same-origin" })
+    // FIX: id ora nel body POST invece che in query string, coerentemente
+    // con index.php che ora legge $_POST['id'] per verificare l'ownership
+    // della partita prima di accettare l'abbandono.
+    fetch("/resign", {
+        method: "POST",
+        credentials: "same-origin",
+        body: new URLSearchParams({ id: gameId })
+    })
     .then(res => res.json())
     .then(data => {
         if (data.success) {
@@ -342,6 +356,8 @@ document.querySelector("#resignBtn").addEventListener("click", function () {
                 window.playerColor === 'bianco' ? 'White resigned' : 'Black resigned',
                 window.playerColor === 'bianco' ? 'Black wins!'    : 'White wins!'
             );
+        } else {
+            console.error("Errore resign:", data.error);
         }
     });
 });
@@ -420,6 +436,10 @@ function showPromoMenu(fenBase, to, turn) {
         btn.style.fontSize = '2rem';
         btn.onclick = () => {
             document.body.removeChild(menu);
+            // Nota: fen_base e turn vengono ancora inviati per compatibilità
+            // con l'endpoint, ma index.php ora li IGNORA e ricalcola tutto
+            // lato server dalla promozione "in sospeso" salvata in sessione
+            // (vedi fix di index.php) — qui bastano id e promo.
             fetch("/promuovi?id=" + gameId, {
                 method:      "POST",
                 credentials: "same-origin",
