@@ -15,7 +15,7 @@ let gameOver = false;
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
 
 // --- WebSocket -----------------------------------------------
-const gameId = sessionStorage.getItem("id_partita");
+const gameId = sessionStorage.getItem("id_partita") || window.gameId || null;
 const ws = new WebSocket(`wss://chessnova.win/wss/`);
 
 ws.onopen = () => { // Invia un messaggio al server WebSocket per unirsi alla partita

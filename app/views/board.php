@@ -134,6 +134,7 @@
         window.tempoNero    = <?= (int)$tempo_nero ?>;
         window.lastMoveTime = <?= (int)$tempo_ultima_mossa ?>;
         window.username     = <?= json_encode($username) ?>;
+        window.gameId = <?= json_encode($game['id_partita']) ?>;
 
         if (window.playerColor === 'nero') {
             const left = document.querySelector('.left');
