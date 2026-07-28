@@ -33,25 +33,36 @@ class ChessServices{
     
         $this->board = $scacchiera;
     }
-    public function isValidMove(string $fen, string $piece, string $from, string $to, $tipo = 'scacchi') {
+    public function isValidMove(string $fen, string $pieceClaimed, string $from, string $to, $tipo = 'scacchi') {
         $this->createBoard($fen);
         $move = $from . $to;
+
         if (!$this->isRightTurn($move, $fen, $tipo)) return false;
         if (!$this->isPieceThere($move)) return false;
-        if($tipo == 'scacchi'){
+
+        // ───── Il pezzo REALE si legge sempre dalla board, mai dal client ─────
+        [$fromRow, $fromCol] = $this->squareToCoord($from);
+        $actualPiece = $this->board[$fromRow][$fromCol];
+
+        if ($tipo === 'scacchi') {
+            // Il client deve dichiarare esattamente il pezzo che c'è davvero.
+            // Confronto case-sensitive: distingue anche il colore (P vs p).
+            if ($actualPiece !== $pieceClaimed) {
+                return false;
+            }
+            $piece = $actualPiece; // da qui in poi, unica fonte di verità
+
             switch (strtolower($piece)) {
                 case 'p':
                     $pawn = new PawnServices();
                     $enPassant = $this->getEnPassant($fen);
                     $result = $pawn->isValidMove($this->board, $from, $to, $this->getTurn($fen), $piece, $enPassant);
                     if (!$result) return false;
-                    
 
-                    // Applica la mossa sul board
-                    [$fromRow, $fromCol] = $this->squareToCoord($from);
-                    [$toRow, $toCol]     = $this->squareToCoord($to);
-                    $this->board[$toRow][$toCol]     = $this->board[$fromRow][$fromCol];
                     $this->board[$fromRow][$fromCol] = null;
+                    $toRow = $this->squareToCoord($to)[0];
+                    $toCol = $this->squareToCoord($to)[1];
+                    $this->board[$toRow][$toCol] = $piece;
 
                     if ($enPassant !== null && $to === $enPassant) {
                         if ($this->getTurn($fen) === 'w') {
@@ -61,7 +72,6 @@ class ChessServices{
                         }
                     }
 
-                    
                     $opponent = ($this->getTurn($fen) === 'w') ? 'b' : 'w';
 
                     if ($this->isKingInCheck($this->board, $this->getTurn($fen))) return false;
@@ -71,21 +81,20 @@ class ChessServices{
                     }
 
                     if ($result === 'promozione') {
-                        
                         return ['promozione' => true, 'fen_base' => $this->buildFullFEN($this->board, $fen, $from, $to, true)];
                     }
 
                     return $this->buildFullFEN($this->board, $fen, $from, $to, true);
+
                 case 'n': {
                     $knight = new KnightServices();
                     $result = $knight->isValidMove($this->board, $from, $to, $this->getTurn($fen), $piece);
                     if (!$result) return false;
 
-                    [$fromRow, $fromCol] = $this->squareToCoord($from);
-                    [$toRow,   $toCol]   = $this->squareToCoord($to);
-                    $wasCapture = $this->board[$toRow][$toCol] !== null; 
+                    [$toRow, $toCol] = $this->squareToCoord($to);
+                    $wasCapture = $this->board[$toRow][$toCol] !== null;
 
-                    $this->board[$toRow][$toCol]     = $this->board[$fromRow][$fromCol];
+                    $this->board[$toRow][$toCol]     = $piece;
                     $this->board[$fromRow][$fromCol] = null;
 
                     if ($this->isKingInCheck($this->board, $this->getTurn($fen))) return false;
@@ -97,16 +106,16 @@ class ChessServices{
 
                     return $this->buildFullFEN($this->board, $fen, $from, $to, $wasCapture);
                 }
+
                 case 'b': {
                     $bishop = new BishopServices();
                     $result = $bishop->isValidMove($this->board, $from, $to, $this->getTurn($fen), $piece);
                     if (!$result) return false;
 
-                    [$fromRow, $fromCol] = $this->squareToCoord($from);
-                    [$toRow,   $toCol]   = $this->squareToCoord($to);
+                    [$toRow, $toCol] = $this->squareToCoord($to);
                     $wasCapture = $this->board[$toRow][$toCol] !== null;
 
-                    $this->board[$toRow][$toCol]     = $this->board[$fromRow][$fromCol];
+                    $this->board[$toRow][$toCol]     = $piece;
                     $this->board[$fromRow][$fromCol] = null;
 
                     if ($this->isKingInCheck($this->board, $this->getTurn($fen))) return false;
@@ -118,16 +127,16 @@ class ChessServices{
 
                     return $this->buildFullFEN($this->board, $fen, $from, $to, $wasCapture);
                 }
+
                 case 'r': {
                     $rook = new RookServices();
                     $result = $rook->isValidMove($this->board, $from, $to, $this->getTurn($fen), $piece);
                     if (!$result) return false;
 
-                    [$fromRow, $fromCol] = $this->squareToCoord($from);
-                    [$toRow,   $toCol]   = $this->squareToCoord($to);
+                    [$toRow, $toCol] = $this->squareToCoord($to);
                     $wasCapture = $this->board[$toRow][$toCol] !== null;
 
-                    $this->board[$toRow][$toCol]     = $this->board[$fromRow][$fromCol];
+                    $this->board[$toRow][$toCol]     = $piece;
                     $this->board[$fromRow][$fromCol] = null;
 
                     if ($this->isKingInCheck($this->board, $this->getTurn($fen))) return false;
@@ -139,16 +148,16 @@ class ChessServices{
 
                     return $this->buildFullFEN($this->board, $fen, $from, $to, $wasCapture);
                 }
+
                 case 'q': {
                     $queen = new QueenServices();
                     $result = $queen->isValidMove($this->board, $from, $to, $this->getTurn($fen), $piece);
                     if (!$result) return false;
 
-                    [$fromRow, $fromCol] = $this->squareToCoord($from);
-                    [$toRow,   $toCol]   = $this->squareToCoord($to);
+                    [$toRow, $toCol] = $this->squareToCoord($to);
                     $wasCapture = $this->board[$toRow][$toCol] !== null;
 
-                    $this->board[$toRow][$toCol]     = $this->board[$fromRow][$fromCol];
+                    $this->board[$toRow][$toCol]     = $piece;
                     $this->board[$fromRow][$fromCol] = null;
 
                     if ($this->isKingInCheck($this->board, $this->getTurn($fen))) return false;
@@ -160,16 +169,16 @@ class ChessServices{
 
                     return $this->buildFullFEN($this->board, $fen, $from, $to, $wasCapture);
                 }
+
                 case 'k': {
                     $king = new KingServices();
                     $result = $king->isValidMove($this->board, $from, $to, $this->getTurn($fen), $piece, $fen, $this);
                     if (!$result) return false;
 
-                    [$fromRow, $fromCol] = $this->squareToCoord($from);
-                    [$toRow,   $toCol]   = $this->squareToCoord($to);
+                    [$toRow, $toCol] = $this->squareToCoord($to);
                     $wasCapture = $this->board[$toRow][$toCol] !== null;
 
-                    $this->board[$toRow][$toCol]     = $this->board[$fromRow][$fromCol];
+                    $this->board[$toRow][$toCol]     = $piece;
                     $this->board[$fromRow][$fromCol] = null;
 
                     if (abs($toCol - $fromCol) === 2) {
@@ -186,40 +195,50 @@ class ChessServices{
 
                     return $this->buildFullFEN($this->board, $fen, $from, $to, $wasCapture);
                 }
+
+                default:
+                    return false; // pezzo non riconosciuto
             }
         }
-        else {
-            $dama = new DamaPiccolaService();
-            $result = $dama->isValidMove($this->board, $from, $to, $this->getTurn($fen), $piece);
-            if (!$result) return false;
 
-            [$fromRow, $fromCol] = $this->squareToCoord($from);
-            [$toRow,   $toCol]   = $this->squareToCoord($to);
-
-          
-            $this->board[$toRow][$toCol]     = $this->board[$fromRow][$fromCol];
-            $this->board[$fromRow][$fromCol] = null;
-
-            
-            if (is_array($result) && isset($result['captured'])) {
-                foreach ($result['captured'] as [$capturedRow, $capturedCol]) {
-                    $this->board[$capturedRow][$capturedCol] = null;
-                }
-            }
-
-            // promozione
-            if ($this->board[$toRow][$toCol] === 'w' && $toRow === 0) {
-                $this->board[$toRow][$toCol] = 'W';
-            }
-            if ($this->board[$toRow][$toCol] === 'b' && $toRow === 7) {
-                $this->board[$toRow][$toCol] = 'B';
-            }
-
-            $newturn = ($this->getTurn($fen) === 'w') ? 'b' : 'w';
-            return $this->createFEN($this->board, $newturn);
+        // ───── DAMA ─────
+        // Anche qui: il tipo (pedina 'w'/'b' vs dama 'W'/'B') si legge dalla board reale,
+        // mai da $pieceClaimed. Confronto case-insensitive sul colore, ma il "grado"
+        // (pedina/dama) è quello effettivo.
+        $claimedColor = strtoupper($pieceClaimed);
+        $actualColor  = strtoupper($actualPiece);
+        if ($claimedColor !== $actualColor) {
+            return false; // il client ha dichiarato un colore diverso da quello reale
         }
-        
-        return false;
+        // NB: usiamo $actualPiece (non $pieceClaimed) per decidere se è dama o pedina,
+        // così il client non può dichiarare 'W'/'B' per far muovere una pedina come dama.
+        $piece = $actualPiece;
+
+        $dama = new DamaPiccolaService();
+        $result = $dama->isValidMove($this->board, $from, $to, $this->getTurn($fen), $piece);
+        if (!$result) return false;
+
+        [$toRow, $toCol] = $this->squareToCoord($to);
+
+        $this->board[$toRow][$toCol]     = $this->board[$fromRow][$fromCol];
+        $this->board[$fromRow][$fromCol] = null;
+
+        if (is_array($result) && isset($result['captured'])) {
+            foreach ($result['captured'] as [$capturedRow, $capturedCol]) {
+                $this->board[$capturedRow][$capturedCol] = null;
+            }
+        }
+
+        // promozione
+        if ($this->board[$toRow][$toCol] === 'w' && $toRow === 0) {
+            $this->board[$toRow][$toCol] = 'W';
+        }
+        if ($this->board[$toRow][$toCol] === 'b' && $toRow === 7) {
+            $this->board[$toRow][$toCol] = 'B';
+        }
+
+        $newturn = ($this->getTurn($fen) === 'w') ? 'b' : 'w';
+        return $this->createFEN($this->board, $newturn);
     }
 
 public function applyMove(string $fen, string $from, string $to, string $piece): array
