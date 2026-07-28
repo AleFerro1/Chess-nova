@@ -1,8 +1,4 @@
 <?php
-
-
-
-
 require_once __DIR__ . '/vendor/autoload.php';
 
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
@@ -14,6 +10,9 @@ ini_set('log_errors', 1);
 
 session_start();
 
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 
 require_once __DIR__ . '/app/db/connection.php';
 require_once __DIR__ . '/app/controllers/HomeController.php';
@@ -39,6 +38,19 @@ use App\Controllers\EditProfileController;
 use App\Controllers\VerifyEmailController;
 use app\controllers\TimecontrolController;
 use App\Controllers\LeaderboardController;
+
+function checkCsrf(): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') return;
+
+    $token = $_POST['_csrf'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    if (!hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
+        http_response_code(403);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'CSRF token non valido']);
+        exit;
+    }
+}
 
 // routing base
 $url = $_GET['url'] ?? 'login';
@@ -139,6 +151,7 @@ switch ($url) {
     
     case 'searchMatch': {
         header('Content-Type: application/json');
+        checkCsrf();       // <-- CSRF check added
        
         if (!isset($_SESSION['username'])) {
             echo json_encode(["success" => false]);
@@ -232,6 +245,7 @@ error_log("INDEX - id_partita: " . ($_SESSION['id_partita'] ?? 'NULL'));
     }
     
     case 'leaveMatchmaking': {
+        checkCsrf();       // <-- CSRF check added
         if (isset($_SESSION['username'])) {
             $matchmaking = new MatchmakingController($db);
             $matchmaking->removeIfWaiting($_SESSION['username']);
@@ -247,6 +261,7 @@ error_log("INDEX - id_partita: " . ($_SESSION['id_partita'] ?? 'NULL'));
 
     case 'resign': {
         header('Content-Type: application/json');
+        checkCsrf();       // <-- CSRF check added
 
         // FIX: 'resign' ora richiede POST invece di GET. Una GET con
         // effetti collaterali è triggerabile da un sito esterno con un
@@ -291,6 +306,8 @@ error_log("INDEX - id_partita: " . ($_SESSION['id_partita'] ?? 'NULL'));
 
     case 'timeoutGame': {
         header('Content-Type: application/json');
+        checkCsrf();       // <-- CSRF check added
+
         if (!isset($_SESSION['username'])) {
             echo json_encode(["success" => false, "error" => "not logged"]);
             exit;
@@ -356,6 +373,7 @@ error_log("INDEX - id_partita: " . ($_SESSION['id_partita'] ?? 'NULL'));
         
         if ($_SERVER['REQUEST_METHOD'] == "POST") {
             header('Content-Type: application/json');
+            checkCsrf();       // <-- CSRF check added
 
             $piece = $_POST["piece"];
             $from  = $_POST["from"];
@@ -543,6 +561,7 @@ error_log("INDEX - id_partita: " . ($_SESSION['id_partita'] ?? 'NULL'));
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Content-Type: application/json');
+            checkCsrf();       // <-- CSRF check added
 
             $promoPiece = $_POST['promo'] ?? null;
             if (!in_array($promoPiece, ['q', 'r', 'b', 'n'], true)) {
@@ -683,31 +702,32 @@ error_log("INDEX - id_partita: " . ($_SESSION['id_partita'] ?? 'NULL'));
     }
 
     case 'legalMoves':{
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        header('Content-Type: application/json');
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            header('Content-Type: application/json');
+            checkCsrf();       // <-- CSRF check added (consigliato anche per lettura)
         
-        $service      = new ChessServices();
-        $board        = new GameController($db);
-        
-        $game         = $board->stateMatch($_GET['id'] ?? null);
-        $tipo_partita = $game['tipo_partita'];
-        
-        $piece        = $_POST['piece'];
-        $from         = $_POST['from'];
-        
-        if (!$board->canPlayerMakeMove($game['id_partita'], $_SESSION['username'], $piece, $tipo_partita)) {
-            echo json_encode(["success" => false, "error" => "non è il tuo pezzo"]);
-            exit;
-        }
+            $service      = new ChessServices();
+            $board        = new GameController($db);
+            
+            $game         = $board->stateMatch($_GET['id'] ?? null);
+            $tipo_partita = $game['tipo_partita'];
+            
+            $piece        = $_POST['piece'];
+            $from         = $_POST['from'];
+            
+            if (!$board->canPlayerMakeMove($game['id_partita'], $_SESSION['username'], $piece, $tipo_partita)) {
+                echo json_encode(["success" => false, "error" => "non è il tuo pezzo"]);
+                exit;
+            }
 
-        $moves = $service->getLegalMoves($game['fen'], $piece, $from, $tipo_partita);
-        
-        echo json_encode([
-            "success" => true,
-            "moves"   => $moves 
-        ]);
-    }
-    break;
+            $moves = $service->getLegalMoves($game['fen'], $piece, $from, $tipo_partita);
+            
+            echo json_encode([
+                "success" => true,
+                "moves"   => $moves 
+            ]);
+        }
+        break;
     }
 
     case 'dama': {
@@ -724,6 +744,7 @@ error_log("INDEX - id_partita: " . ($_SESSION['id_partita'] ?? 'NULL'));
         
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             header('Content-Type: application/json');
+            checkCsrf();       // <-- CSRF check added
 
             $piece = $_POST["piece"];
             $from  = $_POST["from"];
@@ -827,7 +848,8 @@ error_log("INDEX - id_partita: " . ($_SESSION['id_partita'] ?? 'NULL'));
         $editProfile = new EditProfileController($db);
     
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    
+            checkCsrf();       // <-- CSRF check added
+
             $username     = trim($_POST['username']        ?? '');
             $email        = trim($_POST['email']           ?? '');
             $bio          = trim($_POST['bio']             ?? '');
@@ -923,6 +945,7 @@ error_log("INDEX - id_partita: " . ($_SESSION['id_partita'] ?? 'NULL'));
     }
 
     case 'heartbeat': {
+        checkCsrf();       // <-- CSRF check added
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['username'])) {
             $home = new HomeController($db);
             $home->heartbeat($_SESSION['username']);

@@ -11,6 +11,9 @@ let currentFen = window.fen;
 let perspective = window.playerColor;
 let gameOver = false;
 
+// --- CSRF Token ----------------------------------------------
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+
 // --- WebSocket -----------------------------------------------
 const gameId = sessionStorage.getItem("id_partita");
 const ws = new WebSocket(`wss://chessnova.win/wss/`);
@@ -129,13 +132,10 @@ function avviaTimer() {
                 tempoBianco = 0;
                 clearInterval(intervalTimer);
                 document.getElementById('timerBianco').classList.add('scaduto');
-                // 1. Aggiorna il database
-                // FIX: id/color ora nel body POST invece che in query string,
-                // perché index.php ora legge $_POST['id'] / $_POST['color']
-                // (serve per il controllo di ownership per-partita).
                 fetch(`/timeoutGame`, {
                     method: 'POST',
                     credentials: 'same-origin',
+                    headers: { 'X-CSRF-Token': csrfToken },
                     body: new URLSearchParams({ id: gameId, color: 'bianco' })
                 })
                 .then(res => res.json())
@@ -160,6 +160,7 @@ function avviaTimer() {
                 fetch(`/timeoutGame`, {
                     method: 'POST',
                     credentials: 'same-origin',
+                    headers: { 'X-CSRF-Token': csrfToken },
                     body: new URLSearchParams({ id: gameId, color: 'nero' })
                 })
                 .then(res => res.json())
@@ -300,6 +301,7 @@ function handleClick(i, j, board, square) {
         fetch("/board?id=" + gameId, {
             method:      "POST",
             credentials: "same-origin",
+            headers: { 'X-CSRF-Token': csrfToken },
             body: new URLSearchParams({
                 piece: savedSelected.piece,
                 from:  toSquare(savedSelected.i, savedSelected.j),
@@ -360,12 +362,10 @@ function handleClick(i, j, board, square) {
 // --- Resign --------------------------------------------------
 
 document.querySelector("#resignBtn").addEventListener("click", function () {
-    // FIX: id ora nel body POST invece che in query string, coerentemente
-    // con index.php che ora legge $_POST['id'] per verificare l'ownership
-    // della partita prima di accettare l'abbandono.
     fetch("/resign", {
         method: "POST",
         credentials: "same-origin",
+        headers: { 'X-CSRF-Token': csrfToken },
         body: new URLSearchParams({ id: gameId })
     })
     .then(res => res.json())
@@ -401,6 +401,7 @@ function selectPiece(i, j, piece) {
     fetch("/legal-moves?id=" + gameId, {
         method:      "POST",
         credentials: "same-origin",
+        headers: { 'X-CSRF-Token': csrfToken },
         body: new URLSearchParams({ piece, from: toSquare(i, j) })
     })
     .then(res => res.json())
@@ -474,6 +475,7 @@ function showPromoMenu(fenBase, to, turn) {
             fetch("/promuovi?id=" + gameId, {
                 method:      "POST",
                 credentials: "same-origin",
+                headers: { 'X-CSRF-Token': csrfToken },
                 body: new URLSearchParams({ fen_base: fenBase, promo: p, to, turn })
             })
             .then(res => res.json())
