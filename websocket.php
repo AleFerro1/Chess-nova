@@ -69,6 +69,7 @@ class ChessSocket implements MessageComponentInterface {
         ini_set('session.use_only_cookies', 0);
         ini_set('session.use_strict_mode', 0);
         session_start();
+        error_log("WS SESSION: " . print_r($_SESSION, true));
 
         $gameId   = $_SESSION['id_partita'] ?? null;
         $username = $_SESSION['username'] ?? null;
