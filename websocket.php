@@ -10,6 +10,42 @@ use Ratchet\WebSocket\WsServer;
 use App\Services\ChessServices;
 use App\Models\GameModel;
 
+/**
+ * Legge una sessione PHP nativa (file save handler) direttamente da disco,
+ * senza passare da session_start(). Necessario perché Ratchet è un processo
+ * persistente: una volta che il processo ha scritto in output (echo di avvio,
+ * log delle connessioni, ecc.), session_start() smette di funzionare per
+ * qualunque connessione successiva ("headers already sent").
+ */
+function readPhpSession(string $sessionId, string $savePath = '/var/lib/php/sessions'): array
+{
+    $file = rtrim($savePath, '/') . '/sess_' . $sessionId;
+    if (!is_readable($file)) {
+        return [];
+    }
+    $raw = file_get_contents($file);
+    if ($raw === false || $raw === '') {
+        return [];
+    }
+
+    $data = [];
+    $offset = 0;
+    while ($offset < strlen($raw)) {
+        if (!preg_match('/^([a-zA-Z_][a-zA-Z0-9_]*)\|/', substr($raw, $offset), $m)) {
+            break;
+        }
+        $key = $m[1];
+        $offset += strlen($m[0]);
+
+        $result = unserialize(substr($raw, $offset), ['allowed_classes' => false]);
+        $data[$key] = $result;
+
+        // riserializziamo il valore letto per sapere di quanto avanzare l'offset
+        $offset += strlen(serialize($result));
+    }
+    return $data;
+}
+
 class ChessSocket implements MessageComponentInterface {
 
     protected array $clients       = [];
@@ -18,7 +54,7 @@ class ChessSocket implements MessageComponentInterface {
     protected array $gameInstances = [];
     protected array $gameFens      = [];
     protected array $moveHistory   = [];
-    protected array $pendingPromotions = [];  // Aggiunta mancante
+    protected array $pendingPromotions = [];
 
     protected array $allowedOrigins = [
         'https://chessnova.win',
@@ -58,33 +94,27 @@ class ChessSocket implements MessageComponentInterface {
 
         if (!$sessionId || !preg_match('/^[a-zA-Z0-9,\-]{22,250}$/', $sessionId)) {
             echo "Connessione rifiutata: PHPSESSID mancante o malformato\n";
-            $conn->send('Sessione mancante');
+            $conn->send(json_encode(['type' => 'error', 'message' => 'Sessione mancante']));
             $conn->close();
             return;
         }
 
-        // Imposta l'ID di sessione e carica la sessione senza inviare header
-        session_id($sessionId);
-        ini_set('session.use_cookies', 0);
-        ini_set('session.use_only_cookies', 0);
-        ini_set('session.use_strict_mode', 0);
-        session_start();
-        error_log("WS SESSION: " . print_r($_SESSION, true));
+        // Lettura diretta del file di sessione (niente session_start())
+        $sessionData = readPhpSession($sessionId);
+        $gameId   = $sessionData['id_partita'] ?? null;
+        $username = $sessionData['username']   ?? null;
 
-        $gameId   = $_SESSION['id_partita'] ?? null;
-        $username = $_SESSION['username'] ?? null;
+        echo "WS SESSION per {$sessionId}: gameId=" . ($gameId ?? 'null') . " username=" . ($username ?? 'null') . "\n";
+
         if (!$gameId || !$username) {
-            session_write_close();
-            $conn->send('Dati partita mancanti');
+            $conn->send(json_encode(['type' => 'error', 'message' => 'Dati partita mancanti']));
             $conn->close();
             return;
         }
-
-        session_write_close();
 
         $colore = $this->gameModel->getPlayerColor($username);
         if (!$colore) {
-            $conn->send('Impossibile determinare il colore del giocatore');
+            $conn->send(json_encode(['type' => 'error', 'message' => 'Impossibile determinare il colore del giocatore']));
             $conn->close();
             return;
         }
