@@ -1,10 +1,8 @@
 <?php
 require 'vendor/autoload.php';
-
+require 'app/models/GameModel.php';
 // FIX #1: senza questo, getenv('DB_USER')/getenv('DB_PASSWORD') più sotto
 // restituiscono false e il new PDO() crasha il processo all'avvio.
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
-$dotenv->load();
 
 // FIX #2: rimosso il session_start() che stava qui in cima al file.
 // Avviava una sessione "vuota" del processo CLI ancora prima che
@@ -20,7 +18,7 @@ use Ratchet\Server\IoServer;
 use Ratchet\Http\HttpServer;
 use Ratchet\WebSocket\WsServer;
 use App\Services\ChessServices;
-use app\models\GameModel;
+use App\Models\GameModel;
 
 class ChessSocket implements MessageComponentInterface {
 
@@ -300,7 +298,7 @@ class ChessSocket implements MessageComponentInterface {
 }
 
 $pdo = new PDO(
-    'mysql:host=localhost;dbname=chessnova;charset=utf8mb4',
+    'mysql:host=localhost;dbname=chessfeller;charset=utf8mb4',
     getenv('DB_USER'),
     getenv('DB_PASSWORD'),
     [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
