@@ -1,16 +1,6 @@
 <?php
 require 'vendor/autoload.php';
 require 'app/models/GameModel.php';
-// FIX #1: senza questo, getenv('DB_USER')/getenv('DB_PASSWORD') più sotto
-// restituiscono false e il new PDO() crasha il processo all'avvio.
-
-// FIX #2: rimosso il session_start() che stava qui in cima al file.
-// Avviava una sessione "vuota" del processo CLI ancora prima che
-// qualunque client si connettesse, il che impediva a session_id($sessionId)
-// dentro onOpen() di funzionare (non si può cambiare l'id di una sessione
-// già attiva). Risultato: $_SESSION['token'] non veniva mai popolato e
-// ogni connessione finiva rigettata come "Non autenticato".
-// La gestione della sessione ora avviene SOLO per-connessione dentro onOpen().
 
 use Ratchet\MessageComponentInterface;
 use Ratchet\ConnectionInterface;
@@ -25,9 +15,10 @@ class ChessSocket implements MessageComponentInterface {
     protected array $clients       = [];
     protected array $gameRooms     = [];
     protected array $connMeta      = [];
-    protected array $gameInstances = []; // gameId => ChessServices
-    protected array $gameFens      = []; // gameId => FEN corrente (autorevole lato server)
-    protected array $moveHistory   = []; // gameId => storico mosse (per repeatedMoves)
+    protected array $gameInstances = [];
+    protected array $gameFens      = [];
+    protected array $moveHistory   = [];
+    protected array $pendingPromotions = [];  // Aggiunta mancante
 
     protected array $allowedOrigins = [
         'https://chessnova.win',
@@ -42,16 +33,16 @@ class ChessSocket implements MessageComponentInterface {
 
     public function onOpen(ConnectionInterface $conn) {
 
+        // Controllo Origin
         $originHeader = $conn->httpRequest->getHeader('Origin');
         $origin       = $originHeader[0] ?? null;
-
         if (!$origin || !in_array($origin, $this->allowedOrigins, true)) {
             echo "Connessione rifiutata: Origin non consentito ({$origin})\n";
             $conn->close();
             return;
         }
 
-        // 1. Recupera l'ID sessione dal cookie inviato durante l'upgrade
+        // Recupero PHPSESSID dai cookie
         $cookies = $conn->httpRequest->getHeader('Cookie');
         $sessionId = null;
         if (!empty($cookies)) {
@@ -72,29 +63,14 @@ class ChessSocket implements MessageComponentInterface {
             return;
         }
 
-        // 2. Collega questa connessione alla sessione esistente.
-        // Qui non c'è più nessuna sessione già attiva dal top-level, quindi
-        // session_id() può impostare correttamente l'id ricevuto dal cookie.
+        // Imposta l'ID di sessione e carica la sessione senza inviare header
         session_id($sessionId);
+        ini_set('session.use_cookies', 0);
+        ini_set('session.use_only_cookies', 0);
+        ini_set('session.use_strict_mode', 0);
+        session_start();
 
-        // Forza la disabilitazione della strict mode (spesso colpevole)
-ini_set('session.use_strict_mode', 0);
-
-$started = session_start();
-
-$logData = date('Y-m-d H:i:s') . " ID: " . var_export($sessionId, true) . PHP_EOL;
-$logData .= "session_status: " . session_status() . PHP_EOL;
-$logData .= "session_start returned: " . var_export($started, true) . PHP_EOL;
-$logData .= "session_save_path: " . session_save_path() . PHP_EOL;
-$logData .= "SESSION: " . var_export($_SESSION, true) . PHP_EOL . PHP_EOL;
-file_put_contents('/tmp/ws_session_debug.log', $logData, FILE_APPEND);
-
-        $logData = date('Y-m-d H:i:s') . " ID: " . var_export($sessionId, true) . PHP_EOL;
-        $logData .= "session_status: " . session_status() . PHP_EOL;
-        $logData .= "session_save_path: " . session_save_path() . PHP_EOL;
-        $logData .= "SESSION: " . var_export($_SESSION, true) . PHP_EOL . PHP_EOL;
-        file_put_contents('/tmp/ws_session_debug.log', $logData, FILE_APPEND);
-        // 3. Verifica il token o qualsiasi dato di autenticazione
+        // Verifica token di autenticazione
         $token = $_SESSION['token'] ?? null;
         if (!$token) {
             echo "Connessione rifiutata: nessun token in sessione (sid={$sessionId})\n";
@@ -104,12 +80,8 @@ file_put_contents('/tmp/ws_session_debug.log', $logData, FILE_APPEND);
             return;
         }
 
-        // 4. Salva dati utente nella connessione per uso futuro
         $gameId   = $_SESSION['id_partita'] ?? null;
         $username = $_SESSION['username'] ?? null;
-        $conn->token = $token;
-
-        // 5. Se i dati della partita o dell'utente non sono presenti, chiudi la connessione
         if (!$gameId || !$username) {
             session_write_close();
             $conn->send('Dati partita mancanti');
@@ -117,18 +89,16 @@ file_put_contents('/tmp/ws_session_debug.log', $logData, FILE_APPEND);
             return;
         }
 
-        // 6. Rilascia il lock della sessione IMMEDIATAMENTE, così le altre
-        // richieste HTTP dello stesso utente non restano bloccate in attesa.
+        $conn->token = $token;
         session_write_close();
 
-        $colore = $this->gameModel->getPlayerColor($username); // 'bianco' | 'nero'
+        $colore = $this->gameModel->getPlayerColor($username);
         if (!$colore) {
             $conn->send('Impossibile determinare il colore del giocatore');
             $conn->close();
             return;
         }
 
-        // 7. Salva le informazioni della connessione
         $this->connMeta[$conn->resourceId] = [
             'authenticated' => true,
             'game_id'  => $gameId,
@@ -136,14 +106,12 @@ file_put_contents('/tmp/ws_session_debug.log', $logData, FILE_APPEND);
             'color'    => $colore === 'bianco' ? 'w' : 'b',
         ];
 
-        // 8. Registra la connessione
         $this->gameRooms[$gameId][$conn->resourceId] = $conn;
         $this->clients[$conn->resourceId] = $conn;
 
         if (!isset($this->gameInstances[$gameId])) {
             $this->gameInstances[$gameId] = new ChessServices();
         }
-
         if (!isset($this->gameFens[$gameId])) {
             $state = $this->gameModel->getState((int) $gameId);
             $this->gameFens[$gameId] = $state['fen'] ?? null;
@@ -158,7 +126,7 @@ file_put_contents('/tmp/ws_session_debug.log', $logData, FILE_APPEND);
 
         $meta = $this->connMeta[$from->resourceId] ?? null;
         if (!$meta || !($meta['authenticated'] ?? false)) {
-            return; // connessione non autenticata: ignora tutto
+            return;
         }
 
         $gameId   = $meta['game_id'];
@@ -250,7 +218,6 @@ file_put_contents('/tmp/ws_session_debug.log', $logData, FILE_APPEND);
                     || !$chessService->hasEnoughPieces($newFen)) {
                     $this->finalizeGameOver($gameId, 'draw', null);
                 }
-
                 break;
 
             case 'game_over':
@@ -264,7 +231,6 @@ file_put_contents('/tmp/ws_session_debug.log', $logData, FILE_APPEND);
 
                 $state = $this->gameModel->getState((int) $gameId);
                 $stato = $state['stato_partita'] ?? '';
-
                 if (!str_starts_with($stato, 'Resign') && $stato !== 'timeout') {
                     break;
                 }
@@ -313,6 +279,9 @@ file_put_contents('/tmp/ws_session_debug.log', $logData, FILE_APPEND);
     }
 }
 
+// ---------------------------------------------------------------------
+// Avvio del server WebSocket
+// ---------------------------------------------------------------------
 $pdo = new PDO(
     'mysql:host=localhost;dbname=chessfeller;charset=utf8mb4',
     getenv('DB_USER'),
