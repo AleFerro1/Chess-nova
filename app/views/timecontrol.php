@@ -600,6 +600,7 @@ nav { display: flex; align-items: center; gap: 8px; }
 <script>
     window.tipo = <?= $tipo ?>;
 //  Timecontrol selection + matchmaking 
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
 (function() {
     const catPills    = document.querySelectorAll('.cat-pill');
     const cardsSets   = document.querySelectorAll('.cards-set');
@@ -663,7 +664,8 @@ nav { display: flex; align-items: center; gap: 8px; }
 
         fetch('./searchMatch', {
             method: 'POST',
-            body: new URLSearchParams({ timecontrol: tc , tipo: tipo})
+            headers: { 'X-CSRF-Token': csrfToken },
+            body: new URLSearchParams({ timecontrol: tc, tipo: tipo })
         })
         .then(r => r.json())
         .then(data => {
@@ -680,6 +682,7 @@ nav { display: flex; align-items: center; gap: 8px; }
         const poll = setInterval(() => {
             fetch('./checkMatch', {
                 method: 'POST',
+                headers: { 'X-CSRF-Token': csrfToken },
                 body: new URLSearchParams({ timecontrol: tc })
             })
             .then(r => r.json())
@@ -714,13 +717,24 @@ nav { display: flex; align-items: center; gap: 8px; }
 
     // heartbeat
     function heartbeat() {
-        fetch('./heartbeat', { method: 'POST', credentials: 'same-origin', keepalive: true }).catch(() => {});
+        fetch('./heartbeat', {
+            method: 'POST',
+            credentials: 'same-origin',
+            keepalive: true,
+            headers: { 'X-CSRF-Token': csrfToken }
+        }).catch(() => {});
     }
     heartbeat();
     setInterval(heartbeat, 30000);
 
     window.addEventListener('beforeunload', () => {
-        if (searching) navigator.sendBeacon('./leaveMatchmaking');
+        if (searching) {
+            fetch('./leaveMatchmaking', {
+                method: 'POST',
+                keepalive: true,
+                headers: { 'X-CSRF-Token': csrfToken }
+            });
+        }
     });
 })();
 
