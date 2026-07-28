@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="<?= $_SESSION['csrf_token'] ?>">
 <title>Edit Profile - ChessNova</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -368,7 +369,7 @@ textarea { resize: vertical; min-height: 105px; }
 
     <!-- FORM -->
     <form method="POST" action="./editProfile" enctype="multipart/form-data">
-
+        <input type="hidden" name="_csrf" value="<?= $_SESSION['csrf_token'] ?>">
         <div class="form-card">
 
             <!-- AVATAR -->
