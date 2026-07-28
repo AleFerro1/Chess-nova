@@ -70,16 +70,6 @@ class ChessSocket implements MessageComponentInterface {
         ini_set('session.use_strict_mode', 0);
         session_start();
 
-        // Verifica token di autenticazione
-        $token = $_SESSION['token'] ?? null;
-        if (!$token) {
-            echo "Connessione rifiutata: nessun token in sessione (sid={$sessionId})\n";
-            session_write_close();
-            $conn->send('Non autenticato');
-            $conn->close();
-            return;
-        }
-
         $gameId   = $_SESSION['id_partita'] ?? null;
         $username = $_SESSION['username'] ?? null;
         if (!$gameId || !$username) {
@@ -89,7 +79,6 @@ class ChessSocket implements MessageComponentInterface {
             return;
         }
 
-        $conn->token = $token;
         session_write_close();
 
         $colore = $this->gameModel->getPlayerColor($username);
