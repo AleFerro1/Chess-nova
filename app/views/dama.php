@@ -1,4 +1,3 @@
-```php
 <?php
 
 // Variabili fornite dal controller:
@@ -2249,4 +2248,4 @@ initTimerFromServer();
 
 </body>
 </html>
-```
+
