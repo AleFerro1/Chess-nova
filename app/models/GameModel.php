@@ -249,10 +249,12 @@ class GameModel {
     }
 
     public function reisgnFunction($id, $username){
-        $colore = $this->getPlayerColor($username);
+        $colore = $this->getPlayerColorForGame((int)$id, $username);
+        if ($colore === false) {
+            throw new Exception("Non partecipi a questa partita");
+        }
         $stmt = $this->pdo->prepare("UPDATE partite SET stato_partita = :stato WHERE id_partita = :id");
-        $stato = "Resign ". $colore;
-        return $stmt->execute(['stato' => $stato, 'id' => $id]);
+        return $stmt->execute(['stato' => "Resign $colore", 'id' => $id]);
     }
 
     public function getSimpleId($username) {

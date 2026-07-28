@@ -273,10 +273,13 @@ error_log("INDEX - id_partita: " . ($_SESSION['id_partita'] ?? 'NULL'));
 
         $board = new GameController($db);
 
-        $color = $board->getPlayerColorForGame((int) $id, $_SESSION['username']);
-        if (!$color) {
-            http_response_code(403);
+        $playerColor = $board->getPlayerColorForGame((int)$id, $_SESSION['username']);
+        if ($playerColor === false) {
             echo json_encode(["success" => false, "error" => "non partecipi a questa partita"]);
+            exit;
+        }
+        if (isset($color) && $playerColor !== $color) { // solo per timeoutGame
+            echo json_encode(["success" => false, "error" => "colore non corrispondente"]);
             exit;
         }
 
