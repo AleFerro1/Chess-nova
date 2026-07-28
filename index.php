@@ -12,10 +12,6 @@ error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 
-/*session_save_path(__DIR__ . '/tmp');
-if (!is_dir(__DIR__ . '/tmp')) {
-    mkdir(__DIR__ . '/tmp', 0777, true);
-}*/ 
 session_start();
 
 
@@ -30,7 +26,6 @@ require_once __DIR__ . '/app/controllers/ProfileController.php';
 require_once __DIR__ . '/app/controllers/EditProfileController.php';
 require_once __DIR__ . '/app/controllers/VerifyEmailController.php';
 require_once __DIR__ . '/app/controllers/TimecontrolController.php';
-require_once __DIR__ . '/app/controllers/TimecontrolController.php';
 require_once __DIR__ . '/app/controllers/LeaderboardController.php';
 
 use App\Controllers\HomeController;
@@ -44,6 +39,7 @@ use App\Controllers\EditProfileController;
 use App\Controllers\VerifyEmailController;
 use app\controllers\TimecontrolController;
 use App\Controllers\LeaderboardController;
+
 // routing base
 $url = $_GET['url'] ?? 'login';
 
@@ -245,20 +241,42 @@ switch ($url) {
         $board->createMatch(time());
         break;
     }
+
     case 'resign': {
         header('Content-Type: application/json');
 
-        $id = $_GET['id'] ?? null;
+        // FIX: 'resign' ora richiede POST invece di GET. Una GET con
+        // effetti collaterali è triggerabile da un sito esterno con un
+        // semplice <img src="...">, senza bisogno di JavaScript.
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(["success" => false, "error" => "metodo non consentito"]);
+            exit;
+        }
+
+        $id = $_POST['id'] ?? null;
+        if (!$id) {
+            echo json_encode(["success" => false, "error" => "id mancante"]);
+            exit;
+        }
 
         $board = new GameController($db);
-        $board->reisgnFunction($id, $_SESSION['username']);
-        $color = $board->getPlayerColor($_SESSION['username']);
-        $winner = null;
-        if($color == 'bianco'){
-            $winner = 'nero';
-        }
-        if($color == 'nero') $winner = 'bianco';
 
+        // FIX: prima si usava getPlayerColor($username), che prende il
+        // colore dalla partita PIÙ RECENTE dell'utente, non da $id.
+        // Un utente poteva far terminare come "resign" una partita a cui
+        // non stava nemmeno partecipando. Ora verifichiamo esplicitamente
+        // l'appartenenza a QUESTA partita.
+        $color = $board->getPlayerColorForGame((int) $id, $_SESSION['username']);
+        if (!$color) {
+            http_response_code(403);
+            echo json_encode(["success" => false, "error" => "non partecipi a questa partita"]);
+            exit;
+        }
+
+        $board->reisgnFunction($id, $_SESSION['username']);
+
+        $winner = ($color === 'bianco') ? 'nero' : 'bianco';
         $board->updateWinner($winner, $id);
 
         echo json_encode([
@@ -268,43 +286,47 @@ switch ($url) {
         exit;
     }
 
-    /*case 'checkTime' : {
-        $id_partita = $_GET['id'] ?? null;
-        $board = new GameController($db);
-
-        $game = $board->getFullMatch($id_partita);
-        $fen = $game['game']['fen'];
-        $turn = explode(' ', $fen)[1];
-        $turn == 'bianco'
-        $board->getTime($id_partita, $turn);
-    }*/
     case 'timeoutGame': {
         header('Content-Type: application/json');
         if (!isset($_SESSION['username'])) {
             echo json_encode(["success" => false, "error" => "not logged"]);
             exit;
         }
+
+        // FIX: come per 'resign', da GET a POST per togliere il vettore
+        // CSRF-via-<img>.
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(["success" => false, "error" => "metodo non consentito"]);
+            exit;
+        }
+
         $board = new GameController($db);
-        $id    = $_GET['id'] ?? null;
-        $color = $_GET['color'] ?? null;  // 'bianco' o 'nero', passato dal client
+        $id    = $_POST['id'] ?? null;
+        $color = $_POST['color'] ?? null;  // 'bianco' o 'nero', dichiarato dal client
 
         if (!$id || !in_array($color, ['bianco', 'nero'])) {
             echo json_encode(["success" => false, "error" => "parametri mancanti"]);
             exit;
         }
 
-        // Verifica che il giocatore sia effettivamente di quel colore nella partita
-        /*$playerColor = $board->getPlayerColor($_SESSION['username']);
+        // FIX: questo controllo era commentato nel codice originale.
+        // Senza di esso, chiunque autenticato può forzare il timeout di
+        // una partita altrui e alterarne l'esito/ELO. Ora è riattivato
+        // E corretto per essere scoped alla partita specifica (non alla
+        // partita più recente dell'utente).
+        $playerColor = $board->getPlayerColorForGame((int) $id, $_SESSION['username']);
         if ($playerColor !== $color) {
+            http_response_code(403);
             echo json_encode(["success" => false, "error" => "colore non corrispondente"]);
             exit;
-        }*/
+        }
 
         // Determina il vincitore opposto
         $winner = ($color === 'bianco') ? 'nero' : 'bianco';
         $board->updateWinner($winner, $id);
         $game = $board->stateMatch($id);
-        $board->updateMatch($id, $game['fen'], $game['notation'], 'Timeout');  // aggiorna lo stato (fen e notation non cambiano)
+        $board->updateMatch($id, $game['fen'], $game['notation'], 'Timeout');
 
         echo json_encode(["success" => true]);
         exit;
@@ -315,6 +337,17 @@ switch ($url) {
         
         $board = new GameController($db);
         $game = $board->stateMatch($_GET['id'] ?? null);
+
+        // FIX IDOR: verifica che l'utente loggato sia effettivamente uno
+        // dei due giocatori di questa partita, prima di mostrarne lo stato
+        // o accettare mosse. Prima chiunque autenticato poteva passare un
+        // id di partita altrui.
+        $coloreGiocatore = $board->getPlayerColorForGame((int) ($game['id_partita'] ?? 0), $_SESSION['username']);
+        if (!$coloreGiocatore) {
+            http_response_code(403);
+            echo "Accesso negato";
+            exit;
+        }
         
         $boardFittizia = $service->createBoard($game['fen']);
         
@@ -339,8 +372,19 @@ switch ($url) {
                 exit;
             }
 
-            // Promozione: chiedi al client che pezzo vuole
+            // Promozione: chiedi al client che pezzo vuole.
+            // FIX: salviamo lo stato "in sospeso" lato server (in sessione),
+            // così /promuovi non dovrà più fidarsi del fen_base che il
+            // client rimanda indietro — vedi case 'promuovi' più sotto.
             if (is_array($newFen) && isset($newFen['promozione'])) {
+                $_SESSION['pending_promotion'][(string) $game['id_partita']] = [
+                    'fen_base' => $newFen['fen_base'],
+                    'from'     => $from,
+                    'to'       => $to,
+                    'piece'    => $piece,
+                    'username' => $_SESSION['username'],
+                ];
+
                 echo json_encode([
                     "success"    => true,
                     "promozione" => true,
@@ -386,7 +430,7 @@ switch ($url) {
                         "board"     => $newBoard,
                         "checkmate" => true,
                         "winner"    => $winner,
-                        "tempo"     => $tempo,        // così il client sa ancora il tempo residuo
+                        "tempo"     => $tempo,
                         "notation"  => $lastMove
                     ]);
                     exit;
@@ -472,7 +516,6 @@ switch ($url) {
             exit;
 
         } else {
-            $coloreGiocatore = $board->getPlayerColor($_SESSION['username']);
             echo $board->printBoard(
                 $boardFittizia,
                 $coloreGiocatore,
@@ -488,66 +531,154 @@ switch ($url) {
 
         break;
     }
+
     case 'promuovi':{
-    $service = new ChessServices();
-    $board = new GameController($db);
-    $game = $board->stateMatch($_GET['id'] ?? null);
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        header('Content-Type: application/json');
+        $service = new ChessServices();
+        $board   = new GameController($db);
+        $id      = $_GET['id'] ?? null;
+        $game    = $board->stateMatch($id);
 
-        $fenBase    = $_POST['fen_base'];
-        $promoPiece = $_POST['promo'];
-        $to         = $_POST['to'];
-        $turn       = $_POST['turn'];
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            header('Content-Type: application/json');
 
-        $finalPiece = ($turn === 'w') ? strtoupper($promoPiece) : strtolower($promoPiece);
+            $promoPiece = $_POST['promo'] ?? null;
+            if (!in_array($promoPiece, ['q', 'r', 'b', 'n'], true)) {
+                echo json_encode(["success" => false, "error" => "pezzo di promozione non valido"]);
+                exit;
+            }
 
-        $notation = $to . "=" . $finalPiece;
+            // ─────────────────────────────────────────────────────────
+            // FIX CRITICO: non ci fidiamo più di $_POST['fen_base'] né di
+            // $_POST['turn']. Prima il client poteva inviare QUALSIASI
+            // FEN inventato e il server lo persisteva come stato ufficiale
+            // della partita (bypass totale della validazione).
+            //
+            // Ora recuperiamo la promozione "in sospeso" salvata in sessione
+            // da /board (quando isValidMove ha rilevato la promozione), e
+            // la ri-deriviamo interamente lato server usando isValidMove,
+            // partendo dal FEN reale della partita PRIMA della mossa
+            // (cioè $game['fen'], che non viene ancora aggiornato finché
+            // la promozione non si completa).
+            // ─────────────────────────────────────────────────────────
+            $pending = $_SESSION['pending_promotion'][(string) $id] ?? null;
 
-        
-        $boardArr = $service->createBoard($fenBase);
-        [$row, $col] = $service->squareToCoord($to);
-        $boardArr[$row][$col] = $finalPiece;
+            if (!$pending || $pending['username'] !== $_SESSION['username']) {
+                echo json_encode(["success" => false, "error" => "nessuna promozione in sospeso"]);
+                exit;
+            }
 
-     
-        $parts    = explode(' ', trim($fenBase));
-        $parts[0] = $service->createFEN($boardArr);
-        $finalFen = implode(' ', $parts);
+            // Riconferma ownership (difesa in profondità, anche se già
+            // verificato quando /board ha generato lo stato pending)
+            if (!$board->canPlayerMakeMove($id, $_SESSION['username'], $pending['piece'])) {
+                unset($_SESSION['pending_promotion'][(string) $id]);
+                echo json_encode(["success" => false, "error" => "non è il tuo pezzo"]);
+                exit;
+            }
 
-        $opponent = $service->getTurn($finalFen);
-        $newBoard = $boardArr;
+            // Ricostruisci la mossa daccapo usando isValidMove contro il
+            // FEN reale salvato sul server: se qualcosa non torna (la
+            // partita è cambiata, la mossa non è più valida, ecc.) la
+            // richiesta viene rifiutata invece di fidarsi ciecamente.
+            $result = $service->isValidMove(
+                $game['fen'],
+                $pending['piece'],
+                $pending['from'],
+                $pending['to'],
+                'scacchi'
+            );
 
-        // Scaccomatto dopo promozione
-        $check     = $service->isKingInCheck($newBoard, $opponent);
-        $checkmate = false;
-        $stalemate = false;
+            if ($result === false || !is_array($result) || !isset($result['promozione'])) {
+                unset($_SESSION['pending_promotion'][(string) $id]);
+                echo json_encode(["success" => false, "error" => "stato promozione non più valido"]);
+                exit;
+            }
 
-        if ($check) {
-            $checkmate = !$service->hasLegalMoves($newBoard, $opponent);
-        } else {
-            $stalemate = !$service->hasLegalMoves($newBoard, $opponent);
+            $fenBase = $result['fen_base']; // ricalcolato dal server, non dal client
+
+            // Nel fen_base il campo "turno" è già quello dell'avversario
+            // (buildFullFEN lo inverte prima di restituirlo): il colore di
+            // chi promuove è quindi l'opposto del turno codificato nel FEN.
+            $opponentTurn = $service->getTurn($fenBase);
+            $moverColor   = ($opponentTurn === 'w') ? 'b' : 'w';
+
+            $finalPiece = ($moverColor === 'w') ? strtoupper($promoPiece) : strtolower($promoPiece);
+            $notation   = $pending['to'] . '=' . $finalPiece;
+
+            $boardArr = $service->createBoard($fenBase);
+            [$row, $col] = $service->squareToCoord($pending['to']);
+
+            // Verifica che sulla casella ci sia davvero il pedone del
+            // giocatore che sta promuovendo, coerentemente con fen_base
+            $expectedPawn = ($moverColor === 'w') ? 'P' : 'p';
+            if (($boardArr[$row][$col] ?? null) !== $expectedPawn) {
+                unset($_SESSION['pending_promotion'][(string) $id]);
+                echo json_encode(["success" => false, "error" => "stato promozione incoerente"]);
+                exit;
+            }
+
+            $boardArr[$row][$col] = $finalPiece;
+
+            $parts    = explode(' ', trim($fenBase));
+            $parts[0] = $service->createFEN($boardArr);
+            $finalFen = implode(' ', $parts);
+
+            $newBoard = $boardArr;
+
+            // Scaccomatto / stallo dopo promozione
+            $check     = $service->isKingInCheck($newBoard, $opponentTurn);
+            $checkmate = false;
+            $stalemate = false;
+
+            if ($check) {
+                $checkmate = !$service->hasLegalMoves($newBoard, $opponentTurn);
+            } else {
+                $stalemate = !$service->hasLegalMoves($newBoard, $opponentTurn);
+            }
+
+            // FIX: le variabili $enoughPieces/$repetition/$fiftyMoves non
+            // venivano mai calcolate (bug: erano undefined), ora sono
+            // derivate correttamente dal FEN finale.
+            $enoughPieces = $service->hasEnoughPieces($finalFen);
+            $fiftyMoves   = $service->isFiftyMoveRule($finalFen);
+            $tmp          = $board->getFullMatch((int) $id);
+            $repetition   = $service->repeatedMoves($tmp['moves'] ?? [], $finalFen);
+
+            if ($checkmate) {
+                $stato = 'Checkmate';
+            } elseif ($stalemate) {
+                $stato = 'Stalemate';
+            } elseif (!$enoughPieces) {
+                $stato = 'Insufficient material';
+            } elseif ($repetition) {
+                $stato = 'Threefold repetition';
+            } elseif ($fiftyMoves) {
+                $stato = '50 moves';
+            } else {
+                $stato = 'in corso';
+            }
+
+            if ($checkmate) {
+                $winnerColor = ($moverColor === 'w') ? 'bianco' : 'nero';
+                $board->updateWinner($winnerColor, $id);
+            } elseif (in_array($stato, ['Stalemate', 'Insufficient material', 'Threefold repetition', '50 moves'], true)) {
+                $board->updateDraw((int) $id);
+            }
+
+            $board->updateMatch($game['id_partita'], $finalFen, $notation, $stato);
+            unset($_SESSION['pending_promotion'][(string) $id]);
+
+            echo json_encode([
+                "success"   => true,
+                "fen"       => $finalFen,
+                "board"     => $newBoard,
+                "check"     => $check,
+                "checkmate" => $checkmate,
+                "stalemate" => $stalemate
+            ]);
         }
-
-        if($stalemate) $stato = 'Stalemate';
-        if(!$enoughPieces) $stato = 'Insufficent material';
-        if($repetition) $stato = 'Threefold repetition';
-        if($fiftymoves) $stato = '50 moves';
-        if (!$stalemate && $enoughPieces && !$repetition && !$fiftyMoves) $stato = 'in corso';
-
-        $board->updateMatch($game['id_partita'], $finalFen, $notation , $stato);
-        
-
-        echo json_encode([
-            "success"   => true,
-            "fen"       => $finalFen,
-            "board"     => $newBoard,
-            "check"     => $check,
-            "checkmate" => $checkmate,
-            "stalemate" => $stalemate
-        ]);
+        break;
     }
-    break;
-    }
+
     case 'legalMoves':{
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Content-Type: application/json');
@@ -580,6 +711,13 @@ switch ($url) {
         $service = new ChessServices();
         $board = new GameController($db);
         $game = $board->stateMatch($_GET['id'] ?? null);
+
+        $coloreGiocatore = $board->getPlayerColorForGame((int) ($game['id_partita'] ?? 0), $_SESSION['username']);
+        if (!$coloreGiocatore) {
+            http_response_code(403);
+            echo "Accesso negato";
+            exit;
+        }
         
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             header('Content-Type: application/json');
@@ -660,7 +798,6 @@ switch ($url) {
         } else {
             
             $boardFittizia = $service->createBoard($game['fen']);
-            $coloreGiocatore = $board->getPlayerColor($_SESSION['username']);
             echo $board->printBoard(
                 $boardFittizia,
                 $coloreGiocatore,

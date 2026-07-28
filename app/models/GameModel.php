@@ -347,4 +347,22 @@ class GameModel {
 
         return $id ? (int)$id : null;
     }
+
+    public function getPlayerColorForGame(int $id_partita, string $username): string|false
+    {
+        $stmt = $this->pdo->prepare("
+            SELECT colore_utente
+            FROM collegamento_partite
+            WHERE id_partita = :id_partita
+            AND username_utente = :username
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'id_partita' => $id_partita,
+            'username'   => $username,
+        ]);
+    
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row['colore_utente'] ?? false;
+    }
 }

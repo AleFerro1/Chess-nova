@@ -138,4 +138,8 @@ class GameController {
         return ob_get_clean();
         
     }
+
+    public function getPlayerColorForGame(int $id_partita, string $username){
+        return $this->game_model->getPlayerColorForGame($id_partita, $username);
+    }
 }

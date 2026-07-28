@@ -14,8 +14,8 @@ let gameOver = false;
 // --- WebSocket -----------------------------------------------
 const gameId = sessionStorage.getItem("id_partita");
 const ws = new WebSocket(`wss://chessnova.win/wss/`);
-console.log('game.js caricato, gameId =');
-ws.onopen = () => {
+
+ws.onopen = () => { // Invia un messaggio al server WebSocket per unirsi alla partita
     ws.send(JSON.stringify({
         type:     'join',
         game_id:  gameId,
@@ -23,7 +23,7 @@ ws.onopen = () => {
     }));
 };
 
-ws.onmessage = (event) => { //risposta del server 
+ws.onmessage = (event) => { // Gestisce i messaggi ricevuti dal server WebSocket
     const data = JSON.parse(event.data);
 
     switch (data.type) {
@@ -307,13 +307,10 @@ function handleClick(i, j, board, square) {
 
             // -- Notifica avversario via WebSocket --
             ws.send(JSON.stringify({
-                type:     'move',
-                game_id:  gameId,
-                fen:      data.fen,
-                turn:     currentTurn,
-                moves:    data.storico?.moves ?? [],
-                timers:   { bianco: tempoBianco, nero: tempoNero },
-                notation: data.notation ?? null,
+                type: 'move',
+                from: toSquare(savedSelected.i, savedSelected.j),
+                to: toSquare(i, j),
+                piece: savedSelected.piece,
             }));
 
             // -- Game over --
