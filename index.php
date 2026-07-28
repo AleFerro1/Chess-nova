@@ -213,6 +213,9 @@ switch ($url) {
         $board = new GameController($db);
         $id_partita = $board->getActiveMatchId($_SESSION['username']);
         $_SESSION['id_partita'] = $id_partita;
+        error_log("INDEX - session_id: " . session_id());
+error_log("INDEX - username: " . ($_SESSION['username'] ?? 'NULL'));
+error_log("INDEX - id_partita: " . ($_SESSION['id_partita'] ?? 'NULL'));
         if ($id_partita) {
             echo json_encode([
                 "success" => true,
