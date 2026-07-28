@@ -19,18 +19,11 @@ class LoginModel {
         $utente = $stmt->fetch(PDO::FETCH_ASSOC);
 
         // utente non esiste
-        if (!$utente) {
+        if (!$utente || !password_verify($password, $utente['password'])) {
             return 'credenziali errate';
         }
-
-        // non verificato
         if ((int)$utente['is_verified'] === 0) {
             return 'not verified';
-        }
-
-        // password errata
-        if (!password_verify($password, $utente['password'])) {
-            return 'credenziali errate';
         }
 
         // login ok

@@ -88,6 +88,7 @@ switch ($url) {
             $result = $login->login($username, $password);
 
             if($result == 'success'){
+                session_regenerate_id(true);
                 $_SESSION['username'] = $username;
                 echo json_encode(["success" => "success"]);
                 exit;
