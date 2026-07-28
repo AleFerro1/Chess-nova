@@ -207,7 +207,7 @@ class ChessSocket implements MessageComponentInterface {
 
                 $this->gameFens[$gameId] = $newFen;
                 $this->moveHistory[$gameId][] = ['fen' => $newFen];
-                $chessService->createBoard($newFen);
+                $board = $chessService->createBoard($newFen);
 
                 $this->gameModel->updateState((int) $gameId, $newFen);
                 $this->gameModel->updateMoves((int) $gameId, $fromSquare . $toSquare, $newFen);
@@ -228,7 +228,7 @@ class ChessSocket implements MessageComponentInterface {
                 }
 
                 $nextTurn = $chessService->getTurn($newFen);
-                $board    = $chessService->board;
+                //$board    = $chessService->board;
 
                 if (!$chessService->hasLegalMoves($board, $nextTurn)) {
                     $winnerColor = ($nextTurn === 'w') ? 'nero' : 'bianco';
