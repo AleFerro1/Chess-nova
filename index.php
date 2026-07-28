@@ -279,14 +279,10 @@ error_log("INDEX - id_partita: " . ($_SESSION['id_partita'] ?? 'NULL'));
             echo json_encode(["success" => false, "error" => "non partecipi a questa partita"]);
             exit;
         }
-        if (isset($color) && $playerColor !== $color) { // solo per timeoutGame
-            echo json_encode(["success" => false, "error" => "colore non corrispondente"]);
-            exit;
-        }
 
         $board->reisgnFunction($id, $_SESSION['username']);
 
-        $winner = ($color === 'bianco') ? 'nero' : 'bianco';
+        $winner = ($playerColor === 'bianco') ? 'nero' : 'bianco';
         $board->updateWinner($winner, $id);
 
         echo json_encode([
@@ -341,6 +337,12 @@ error_log("INDEX - id_partita: " . ($_SESSION['id_partita'] ?? 'NULL'));
         
         $board = new GameController($db);
         $game = $board->stateMatch($_GET['id'] ?? null);
+
+        if (($game['tipo_partita'] ?? null) !== 'scacchi') {
+            http_response_code(400);
+            echo json_encode(["success" => false, "error" => "tipo partita non corrispondente"]);
+            exit;
+        }
 
         $coloreGiocatore = $board->getPlayerColorForGame((int) ($game['id_partita'] ?? 0), $_SESSION['username']);
         if (!$coloreGiocatore) {
@@ -726,6 +728,12 @@ error_log("INDEX - id_partita: " . ($_SESSION['id_partita'] ?? 'NULL'));
         $service = new ChessServices();
         $board = new GameController($db);
         $game = $board->stateMatch($_GET['id'] ?? null);
+
+        if (($game['tipo_partita'] ?? null) !== 'dama') {
+            http_response_code(400);
+            echo json_encode(["success" => false, "error" => "tipo partita non corrispondente"]);
+            exit;
+        }
 
         $coloreGiocatore = $board->getPlayerColorForGame((int) ($game['id_partita'] ?? 0), $_SESSION['username']);
         if (!$coloreGiocatore) {
