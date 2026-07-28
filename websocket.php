@@ -78,6 +78,11 @@ class ChessSocket implements MessageComponentInterface {
         session_id($sessionId);
         session_start();
 
+        $logData = date('Y-m-d H:i:s') . " ID: " . var_export($sessionId, true) . PHP_EOL;
+        $logData .= "session_status: " . session_status() . PHP_EOL;
+        $logData .= "session_save_path: " . session_save_path() . PHP_EOL;
+        $logData .= "SESSION: " . var_export($_SESSION, true) . PHP_EOL . PHP_EOL;
+        file_put_contents('/tmp/ws_session_debug.log', $logData, FILE_APPEND);
         // 3. Verifica il token o qualsiasi dato di autenticazione
         $token = $_SESSION['token'] ?? null;
         if (!$token) {
