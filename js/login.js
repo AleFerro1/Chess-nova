@@ -13,10 +13,23 @@ document.getElementById("loginForm").addEventListener("submit", function(e) {
         })
         .then(res => res.json())
         .then(data => {
-            if (data.success) {
-                window.location.href = "./home";
-            } else {
-                document.getElementById("errorMsg").textContent = "Credenziali non valide";
+            const errorEl = document.getElementById("errorMsg");
+
+            switch (data.success) {
+                case "success":
+                    window.location.href = "./home";
+                    break;
+                case "not_verified":
+                    errorEl.textContent = "Devi verificare la tua email prima di accedere";
+                    break;
+                case "rate_limited":
+                    errorEl.textContent = "Troppi tentativi. Riprova tra qualche minuto.";
+                    break;
+                default:
+                    errorEl.textContent = "Credenziali non valide";
             }
+        })
+        .catch(() => {
+            document.getElementById("errorMsg").textContent = "Errore di rete, riprova.";
         });
 });

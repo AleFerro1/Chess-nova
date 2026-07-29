@@ -9,8 +9,8 @@ class LoginController{
         $this->login_model = new LoginModel($pdo);
     }
 
-    function login($username, $password){
-        return $this->login_model->loginUtente($username, $password);
+    function login($username, $password, string $ip){
+        return $this->login_model->loginUtente($username, $password, $ip);
     }
 
     function printLogin($verify){

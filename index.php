@@ -39,6 +39,78 @@ use App\Controllers\VerifyEmailController;
 use app\controllers\TimecontrolController;
 use App\Controllers\LeaderboardController;
 
+/**
+ * Range IP ufficiali di Cloudflare (IPv4 + IPv6).
+ * Fonte: https://www.cloudflare.com/ips-v4 e /ips-v6
+ * Vanno aggiornati periodicamente: Cloudflare li cambia raramente,
+ * ma è buona norma ricontrollarli ogni tanto.
+ */
+const CLOUDFLARE_IP_RANGES = [
+    '173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22',
+    '141.101.64.0/18', '108.162.192.0/18', '190.93.240.0/20', '188.114.96.0/20',
+    '197.234.240.0/22', '198.41.128.0/17', '162.158.0.0/15', '104.16.0.0/13',
+    '104.24.0.0/14', '172.64.0.0/13', '131.0.72.0/22',
+    '2400:cb00::/32', '2606:4700::/32', '2803:f800::/32', '2405:b500::/32',
+    '2405:8100::/32', '2a06:98c0::/29', '2c0f:f248::/32',
+];
+
+function ipInRange(string $ip, string $range): bool
+{
+    [$subnet, $bits] = explode('/', $range);
+    $bits = (int) $bits;
+
+    if (str_contains($subnet, ':')) {                 // IPv6
+        $ipBin     = @inet_pton($ip);
+        $subnetBin = @inet_pton($subnet);
+        if ($ipBin === false || $subnetBin === false) return false;
+
+        $bytes = intdiv($bits, 8);
+        $rem   = $bits % 8;
+
+        if (strncmp($ipBin, $subnetBin, $bytes) !== 0) return false;
+        if ($rem === 0) return true;
+
+        $mask = ~(0xFF >> $rem) & 0xFF;
+        return (ord($ipBin[$bytes]) & $mask) === (ord($subnetBin[$bytes]) & $mask);
+    }
+
+    // IPv4
+    $ipLong     = ip2long($ip);
+    $subnetLong = ip2long($subnet);
+    if ($ipLong === false || $subnetLong === false) return false;
+
+    $mask = -1 << (32 - $bits);
+    return ($ipLong & $mask) === ($subnetLong & $mask);
+}
+
+function isFromCloudflare(string $remoteAddr): bool
+{
+    foreach (CLOUDFLARE_IP_RANGES as $range) {
+        if (ipInRange($remoteAddr, $range)) return true;
+    }
+    return false;
+}
+
+/**
+ * Restituisce l'IP reale del client. Si fida di CF-Connecting-IP
+ * SOLO se la connessione TCP arriva davvero da un IP di Cloudflare;
+ * altrimenti la richiesta ha bypassato Cloudflare (o l'header è
+ * falsificato) e si usa REMOTE_ADDR così com'è.
+ */
+function getClientIp(): string
+{
+    $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+
+    if (isFromCloudflare($remoteAddr) && !empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+        $candidate = $_SERVER['HTTP_CF_CONNECTING_IP'];
+        if (filter_var($candidate, FILTER_VALIDATE_IP)) {
+            return $candidate;
+        }
+    }
+
+    return $remoteAddr;
+}
+
 function checkCsrf(): void
 {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') return;
@@ -84,8 +156,9 @@ switch ($url) {
 
             $username = $_POST['username'];
             $password = $_POST['password'];
+            $ip       = getClientIp();
 
-            $result = $login->login($username, $password);
+            $result = $login->login($username, $password, $ip);
 
             if($result == 'success'){
                 session_regenerate_id(true);
@@ -95,6 +168,11 @@ switch ($url) {
             }
             if($result == 'not verified'){
                 echo json_encode(["success" => "not_verified"]);
+                exit;
+            }
+            if($result == 'rate limited'){
+                http_response_code(429);
+                echo json_encode(["success" => "rate_limited"]);
                 exit;
             }
             if($result == 'credenziali errate'){

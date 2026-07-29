@@ -34,11 +34,16 @@ class EditProfileModel {
     ): string {
 
         /* validazioni testo */
-        if ($this->checkUsernameFormat($newUsername)) return 'username';
-        if ($this->offensiveText($newUsername))       return 'username';
-        if (!$this->checkEmail($email))               return 'email';
-        if ($this->offensiveText($bio))               return 'bio';
-        if ($this->checkBioLength($bio))              return 'bioLunghezza';
+        if (!$this->checkUsernameFormat($newUsername)) return 'username';
+        if ($this->offensiveText($newUsername))        return 'username';
+        if (!$this->checkEmail($email))                return 'email';
+        if (!$this->checkBioLength($bio))              return 'bioLunghezza';
+        if ($this->offensiveText($bio))                return 'bio';
+
+        /* difesa in profondità: anche se l'output è già escapato in
+           tutte le view, rimuoviamo comunque eventuali tag HTML alla
+           scrittura, così il dato salvato resta innocuo di suo */
+        $bio = strip_tags($bio);
 
         /* gestione password */
         $hashedPassword = $this->resolvePassword($oldPassword, $oldUsername, $newPassword);
@@ -192,6 +197,9 @@ class EditProfileModel {
         return (bool) preg_match('/^[a-zA-Z0-9_\-]{3,20}$/', $username);
     }
 
+    /**
+     * Limite di lunghezza per la bio. Vuota è ammessa (campo opzionale).
+     */
     public function checkBioLength(string $bio): bool
     {
         return mb_strlen(trim($bio)) <= 300;
