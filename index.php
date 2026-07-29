@@ -41,9 +41,6 @@ use App\Controllers\LeaderboardController;
 
 /**
  * Range IP ufficiali di Cloudflare (IPv4 + IPv6).
- * Fonte: https://www.cloudflare.com/ips-v4 e /ips-v6
- * Vanno aggiornati periodicamente: Cloudflare li cambia raramente,
- * ma è buona norma ricontrollarli ogni tanto.
  */
 const CLOUDFLARE_IP_RANGES = [
     '173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22',
