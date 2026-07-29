@@ -34,9 +34,10 @@ class EditProfileModel {
     ): string {
 
         /* validazioni testo */
-        if ($this->offensiveText($newUsername)) return 'username';
-        if (!$this->checkEmail($email))         return 'email';
-        if ($this->offensiveText($bio))         return 'bio';
+        if($this->checkUsernameFormat($newUsername)) return 'username';
+        if ($this->offensiveText($newUsername))      return 'username';
+        if (!$this->checkEmail($email))              return 'email';
+        if ($this->offensiveText($bio))              return 'bio';
 
         /* gestione password */
         $hashedPassword = $this->resolvePassword($oldPassword, $oldUsername, $newPassword);
