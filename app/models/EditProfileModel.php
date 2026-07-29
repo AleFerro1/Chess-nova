@@ -34,10 +34,11 @@ class EditProfileModel {
     ): string {
 
         /* validazioni testo */
-        if($this->checkUsernameFormat($newUsername)) return 'username';
-        if ($this->offensiveText($newUsername))      return 'username';
-        if (!$this->checkEmail($email))              return 'email';
-        if ($this->offensiveText($bio))              return 'bio';
+        if ($this->checkUsernameFormat($newUsername)) return 'username';
+        if ($this->offensiveText($newUsername))       return 'username';
+        if (!$this->checkEmail($email))               return 'email';
+        if ($this->offensiveText($bio))               return 'bio';
+        if ($this->checkBioLength($bio))              return 'bioLunghezza';
 
         /* gestione password */
         $hashedPassword = $this->resolvePassword($oldPassword, $oldUsername, $newPassword);
@@ -189,6 +190,11 @@ class EditProfileModel {
     public function checkUsernameFormat(string $username): bool
     {
         return (bool) preg_match('/^[a-zA-Z0-9_\-]{3,20}$/', $username);
+    }
+
+    public function checkBioLength(string $bio): bool
+    {
+        return mb_strlen(trim($bio)) <= 300;
     }
 
     private function containsToxic(string $text, array $bannedWords): bool

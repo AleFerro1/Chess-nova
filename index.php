@@ -908,6 +908,9 @@ error_log("INDEX - id_partita: " . ($_SESSION['id_partita'] ?? 'NULL'));
                 case 'bio':
                     $_SESSION['bio_error']            = "Bio contains offensive words";
                     break;
+                case 'bioLunghezza':
+                    $_SESSION['bio_error']            = "Bio must be at most 300 characters";
+                    break;
                 case 'errorePassword':
                     $_SESSION['oldPassword_error']    = "Incorrect password";
                     break;
