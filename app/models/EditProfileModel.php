@@ -185,6 +185,11 @@ class EditProfileModel {
         return $text;
     }
 
+    public function checkUsernameFormat(string $username): bool
+    {
+        return (bool) preg_match('/^[a-zA-Z0-9_\-]{3,20}$/', $username);
+    }
+
     private function containsToxic(string $text, array $bannedWords): bool
     {
         $text = $this->normalizeText($text);

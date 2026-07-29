@@ -35,6 +35,7 @@ class SignInModel{
     }
 
     function signInUtente($username, $password, $email){
+      if (!$this->profile->checkUsernameFormat($username)) return 'username';
       if ($this->profile->offensiveText($username)) return 'username';
       if (!$this->profile->checkEmail($email)) return 'email';
       if (!$this->checkPassword($password)) return 'password';

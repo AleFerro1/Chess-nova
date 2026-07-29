@@ -28,7 +28,7 @@
                                 : '/public/assets/img/redking.jpg';
                         ?>
                         <div class="player-avatar">
-                            <img src="<?= $avatarSrc ?>">
+                            <img src="<?= htmlspecialchars($avatarSrc) ?>">
                         </div>
 
                         <div class="player-meta">
@@ -39,11 +39,11 @@
                                         src="https://flagcdn.com/w20/<?= strtolower($elo_nero['country']) ?>.png">
                                 <?php endif; ?>
 
-                                <?= $nomeNero ?>
+                                <?= htmlspecialchars($nomeNero) ?>
                             </div>
 
                             <div class="player-rank">
-                                Elo <?= $elo_nero[$timecontrol] ?? '---' ?>
+                                Elo <?= htmlspecialchars($elo_nero[$timecontrol] ?? '---') ?>
                             </div>
                         </div>
 
@@ -74,7 +74,7 @@
                                 : '/public/assets/img/redking.jpg';
                         ?>
                         <div class="player-avatar">
-                            <img src="<?= $avatarSrc ?>">
+                            <img src="<?= htmlspecialchars($avatarSrc) ?>">
                         </div>
 
                         <div class="player-meta">
@@ -85,11 +85,11 @@
                                         src="https://flagcdn.com/w20/<?= strtolower($elo_bianco['country']) ?>.png">
                                 <?php endif; ?>
 
-                                <?= $nomeBianco ?>
+                                <?= htmlspecialchars($nomeBianco) ?>
                             </div>
 
                             <div class="player-rank">
-                                Elo <?= $elo_bianco[$timecontrol] ?? '---' ?>
+                                Elo <?= htmlspecialchars($elo_bianco[$timecontrol] ?? '---') ?>
                             </div>
                         </div>
 
