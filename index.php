@@ -191,6 +191,7 @@ switch ($url) {
         $signin = new SignInController($db);
         if($_SERVER['REQUEST_METHOD'] === 'POST'){
             header('Content-Type: application/json');
+            checkCsrf();
             
             $username = $_POST['username'];
             $password = $_POST['password'];

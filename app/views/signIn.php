@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+<meta name="csrf-token" content="<?= $_SESSION['csrf_token'] ?>">
 <title>Sign In — ChessNova</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -442,7 +442,7 @@ footer a:hover { color: var(--red); }
             <div class="divider"></div>
 
             <form id="signupForm">
-
+                <input type="hidden" name="_csrf" value="<?= $_SESSION['csrf_token'] ?>">
                 <div class="form-row">
                     <div class="form-group">
                         <label>Username</label>
