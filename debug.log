@@ -1,0 +1,114 @@
+[11-May-2026 13:21:25 Europe/Berlin] PHP Warning:  require_once(../services/countries.php): Failed to open stream: No such file or directory in C:\Users\Alessandro\Documents\chess\app\controllers\EditProfileController.php on line 54
+[11-May-2026 13:21:25 Europe/Berlin] PHP Fatal error:  Uncaught Error: Failed opening required '../services/countries.php' (include_path='C:\xampp\php\PEAR') in C:\Users\Alessandro\Documents\chess\app\controllers\EditProfileController.php:54
+Stack trace:
+#0 C:\Users\Alessandro\Documents\chess\index.php(599): App\Controllers\EditProfileController->printEditProfile('AleFerro1')
+#1 {main}
+  thrown in C:\Users\Alessandro\Documents\chess\app\controllers\EditProfileController.php on line 54
+[11-May-2026 13:22:25 Europe/Berlin] PHP Warning:  require_once(../services/countries.php): Failed to open stream: No such file or directory in C:\Users\Alessandro\Documents\chess\app\controllers\EditProfileController.php on line 54
+[11-May-2026 13:22:25 Europe/Berlin] PHP Fatal error:  Uncaught Error: Failed opening required '../services/countries.php' (include_path='C:\xampp\php\PEAR') in C:\Users\Alessandro\Documents\chess\app\controllers\EditProfileController.php:54
+Stack trace:
+#0 C:\Users\Alessandro\Documents\chess\index.php(599): App\Controllers\EditProfileController->printEditProfile('AleFerro1')
+#1 {main}
+  thrown in C:\Users\Alessandro\Documents\chess\app\controllers\EditProfileController.php on line 54
+[11-May-2026 13:22:26 Europe/Berlin] PHP Warning:  require_once(../services/countries.php): Failed to open stream: No such file or directory in C:\Users\Alessandro\Documents\chess\app\controllers\EditProfileController.php on line 54
+[11-May-2026 13:22:26 Europe/Berlin] PHP Fatal error:  Uncaught Error: Failed opening required '../services/countries.php' (include_path='C:\xampp\php\PEAR') in C:\Users\Alessandro\Documents\chess\app\controllers\EditProfileController.php:54
+Stack trace:
+#0 C:\Users\Alessandro\Documents\chess\index.php(599): App\Controllers\EditProfileController->printEditProfile('AleFerro1')
+#1 {main}
+  thrown in C:\Users\Alessandro\Documents\chess\app\controllers\EditProfileController.php on line 54
+[11-May-2026 13:22:26 Europe/Berlin] PHP Warning:  require_once(../services/countries.php): Failed to open stream: No such file or directory in C:\Users\Alessandro\Documents\chess\app\controllers\EditProfileController.php on line 54
+[11-May-2026 13:22:26 Europe/Berlin] PHP Fatal error:  Uncaught Error: Failed opening required '../services/countries.php' (include_path='C:\xampp\php\PEAR') in C:\Users\Alessandro\Documents\chess\app\controllers\EditProfileController.php:54
+Stack trace:
+#0 C:\Users\Alessandro\Documents\chess\index.php(599): App\Controllers\EditProfileController->printEditProfile('AleFerro1')
+#1 {main}
+  thrown in C:\Users\Alessandro\Documents\chess\app\controllers\EditProfileController.php on line 54
+[11-May-2026 13:37:50 Europe/Berlin] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'chessfeller.partecipa' doesn't exist in C:\Users\Alessandro\Documents\chess\app\models\GameModel.php:220
+Stack trace:
+#0 C:\Users\Alessandro\Documents\chess\app\models\GameModel.php(220): PDOStatement->execute(Array)
+#1 C:\Users\Alessandro\Documents\chess\app\controllers\GameController.php(65): App\Models\GameModel->getSimpleId('AleFerro1')
+#2 C:\Users\Alessandro\Documents\chess\app\controllers\GameController.php(79): App\Controllers\GameController->getSimpleId('AleFerro1')
+#3 C:\Users\Alessandro\Documents\chess\index.php(442): App\Controllers\GameController->printBoard(Array, 'rnbqkbnr/pppppp...', 'bianco', '600', '600', '1778499133', 'AleFerro1')
+#4 {main}
+  thrown in C:\Users\Alessandro\Documents\chess\app\models\GameModel.php on line 220
+[11-May-2026 13:39:06 Europe/Berlin] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'chessfeller.partita' doesn't exist in C:\Users\Alessandro\Documents\chess\app\models\GameModel.php:220
+Stack trace:
+#0 C:\Users\Alessandro\Documents\chess\app\models\GameModel.php(220): PDOStatement->execute(Array)
+#1 C:\Users\Alessandro\Documents\chess\app\controllers\GameController.php(65): App\Models\GameModel->getSimpleId('AleFerro1')
+#2 C:\Users\Alessandro\Documents\chess\app\controllers\GameController.php(79): App\Controllers\GameController->getSimpleId('AleFerro1')
+#3 C:\Users\Alessandro\Documents\chess\index.php(442): App\Controllers\GameController->printBoard(Array, 'rnbqkbnr/pppppp...', 'bianco', '600', '600', '1778499133', 'AleFerro1')
+#4 {main}
+  thrown in C:\Users\Alessandro\Documents\chess\app\models\GameModel.php on line 220
+[11-May-2026 13:39:26 Europe/Berlin] PHP Warning:  Array to string conversion in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 21
+[11-May-2026 13:45:19 Europe/Berlin] PHP Parse error:  syntax error, unexpected token "=" in C:\Users\Alessandro\Documents\chess\app\controllers\GameController.php on line 81
+[11-May-2026 13:45:19 Europe/Berlin] PHP Parse error:  syntax error, unexpected token "=" in C:\Users\Alessandro\Documents\chess\app\controllers\GameController.php on line 81
+[11-May-2026 13:47:19 Europe/Berlin] PHP Parse error:  Unclosed '{' on line 9 in C:\Users\Alessandro\Documents\chess\app\controllers\GameController.php on line 108
+[11-May-2026 13:47:19 Europe/Berlin] PHP Parse error:  Unclosed '{' on line 9 in C:\Users\Alessandro\Documents\chess\app\controllers\GameController.php on line 108
+[11-May-2026 13:48:32 Europe/Berlin] PHP Warning:  Array to string conversion in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 22
+[11-May-2026 13:48:32 Europe/Berlin] PHP Warning:  Array to string conversion in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 34
+[11-May-2026 13:48:35 Europe/Berlin] PHP Warning:  Array to string conversion in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 22
+[11-May-2026 13:48:35 Europe/Berlin] PHP Warning:  Array to string conversion in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 34
+[11-May-2026 13:54:12 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\controllers\GameController.php on line 88
+[11-May-2026 13:54:12 Europe/Berlin] PHP Warning:  foreach() argument must be of type array|object, null given in C:\Users\Alessandro\Documents\chess\app\controllers\GameController.php on line 88
+[11-May-2026 14:11:34 Europe/Berlin] PHP Warning:  Array to string conversion in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 37
+[11-May-2026 14:27:24 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\controllers\GameController.php on line 88
+[11-May-2026 14:27:24 Europe/Berlin] PHP Warning:  foreach() argument must be of type array|object, null given in C:\Users\Alessandro\Documents\chess\app\controllers\GameController.php on line 88
+[11-May-2026 14:27:24 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 37
+[11-May-2026 14:27:24 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 81
+[11-May-2026 14:27:39 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\controllers\GameController.php on line 88
+[11-May-2026 14:27:39 Europe/Berlin] PHP Warning:  foreach() argument must be of type array|object, null given in C:\Users\Alessandro\Documents\chess\app\controllers\GameController.php on line 88
+[11-May-2026 14:27:39 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 37
+[11-May-2026 14:27:39 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 81
+[11-May-2026 14:29:48 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\controllers\GameController.php on line 88
+[11-May-2026 14:29:48 Europe/Berlin] PHP Warning:  foreach() argument must be of type array|object, null given in C:\Users\Alessandro\Documents\chess\app\controllers\GameController.php on line 88
+[11-May-2026 14:29:48 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 37
+[11-May-2026 14:29:48 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 81
+[11-May-2026 14:30:25 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\controllers\GameController.php on line 88
+[11-May-2026 14:30:25 Europe/Berlin] PHP Warning:  foreach() argument must be of type array|object, null given in C:\Users\Alessandro\Documents\chess\app\controllers\GameController.php on line 88
+[11-May-2026 14:30:25 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 37
+[11-May-2026 14:30:25 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 81
+[11-May-2026 14:32:40 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 37
+[11-May-2026 14:32:40 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 81
+[11-May-2026 14:32:58 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 37
+[11-May-2026 14:32:58 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 81
+[11-May-2026 14:34:26 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 37
+[11-May-2026 14:34:26 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 81
+[11-May-2026 14:34:29 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 37
+[11-May-2026 14:34:29 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 81
+[11-May-2026 14:34:30 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 37
+[11-May-2026 14:34:30 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 81
+[11-May-2026 14:35:39 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 37
+[11-May-2026 14:35:39 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 82
+[11-May-2026 14:36:04 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 37
+[11-May-2026 14:36:04 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 81
+[11-May-2026 14:36:18 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 37
+[11-May-2026 14:36:18 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 81
+[11-May-2026 14:36:38 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 37
+[11-May-2026 14:36:38 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 81
+[11-May-2026 14:37:26 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 37
+[11-May-2026 14:37:26 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 81
+[11-May-2026 14:37:28 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 37
+[11-May-2026 14:37:28 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 81
+[11-May-2026 14:39:20 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\views\board.php on line 84
+[11-May-2026 15:17:46 Europe/Berlin] PHP Warning:  Undefined array key "email" in C:\Users\Alessandro\Documents\chess\index.php on line 74
+[11-May-2026 15:17:49 Europe/Berlin] PHP Warning:  Undefined array key "email" in C:\Users\Alessandro\Documents\chess\index.php on line 74
+[11-May-2026 15:17:50 Europe/Berlin] PHP Warning:  Undefined array key "email" in C:\Users\Alessandro\Documents\chess\index.php on line 74
+[11-May-2026 15:17:51 Europe/Berlin] PHP Warning:  Undefined array key "email" in C:\Users\Alessandro\Documents\chess\index.php on line 74
+[11-May-2026 15:51:40 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\models\ProfileModel.php on line 14
+[11-May-2026 15:52:45 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\models\ProfileModel.php on line 21
+[11-May-2026 15:52:45 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\models\ProfileModel.php on line 27
+[11-May-2026 15:52:45 Europe/Berlin] PHP Fatal error:  Uncaught DivisionByZeroError: Division by zero in C:\Users\Alessandro\Documents\chess\app\controllers\ProfileController.php:27
+Stack trace:
+#0 C:\Users\Alessandro\Documents\chess\index.php(552): App\Controllers\ProfileController->printProfile('AleFerro3')
+#1 {main}
+  thrown in C:\Users\Alessandro\Documents\chess\app\controllers\ProfileController.php on line 27
+[11-May-2026 15:53:04 Europe/Berlin] PHP Warning:  Trying to access array offset on value of type bool in C:\Users\Alessandro\Documents\chess\app\models\ProfileModel.php on line 21
+[11-May-2026 15:53:04 Europe/Berlin] PHP Fatal error:  Uncaught DivisionByZeroError: Division by zero in C:\Users\Alessandro\Documents\chess\app\controllers\ProfileController.php:27
+Stack trace:
+#0 C:\Users\Alessandro\Documents\chess\index.php(552): App\Controllers\ProfileController->printProfile('AleFerro3')
+#1 {main}
+  thrown in C:\Users\Alessandro\Documents\chess\app\controllers\ProfileController.php on line 27
+[11-May-2026 15:53:18 Europe/Berlin] PHP Fatal error:  Uncaught DivisionByZeroError: Division by zero in C:\Users\Alessandro\Documents\chess\app\controllers\ProfileController.php:27
+Stack trace:
+#0 C:\Users\Alessandro\Documents\chess\index.php(552): App\Controllers\ProfileController->printProfile('AleFerro3')
+#1 {main}
+  thrown in C:\Users\Alessandro\Documents\chess\app\controllers\ProfileController.php on line 27

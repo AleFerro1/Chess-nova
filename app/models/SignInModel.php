@@ -53,11 +53,12 @@ class SignInModel{
 
           return 'success';
       } catch (\PDOException $e) {
-          if ($e->getCode() === '23000') {
-              $msg = $e->getMessage();
-              if (str_contains($msg, 'email')) return 'email';
-              return 'username'; // duplicate PRIMARY key = username
-          }
+          error_log('SignIn error: ' . $e->getCode() . ' - ' . $e->getMessage());
+        if ($e->getCode() === '23000') {
+            $msg = $e->getMessage();
+            if (str_contains($msg, 'email')) return 'email';
+            return 'username';
+        }
           return 'error';
       }
   }
