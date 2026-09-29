@@ -473,9 +473,6 @@
                 <a class="btn btn-play" href="./timecontrol?tipo=1">
                     ♟ Play
                 </a>
-                <a class="btn btn-secondary" href="learn">
-                    Coming soon
-                </a>
             </div>
         </div>
 
