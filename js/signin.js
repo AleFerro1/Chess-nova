@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
+    
     document.getElementById("signupForm").addEventListener("submit", function(e) {
         e.preventDefault();
 
@@ -34,8 +35,11 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
+        const csrf = document.querySelector('meta[name="csrf-token"]').content;
+
         fetch("/signin-exe", {
                 method: "POST",
+                headers: { "X-CSRF-Token": csrf },
                 body: new URLSearchParams({
                     username,
                     password,
